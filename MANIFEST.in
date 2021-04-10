@@ -1,0 +1,6 @@
+include *.txt
+include *.md
+include ./requirements.txt
+
+recursive-include ./whacc/ *
+
