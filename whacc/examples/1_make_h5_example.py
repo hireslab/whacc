@@ -1,9 +1,5 @@
-# from PSM_testbed import WhACC
-from PSM_testbed.WhACC import PoleTracking
-# from PSM_testbed.WhACC import utils
-# from Users/phil/Dropbox/Autocurator/code/WhACC_testing/PSM_testbed/ import PSM_testbed
-
-import PSM_testbed
+from whacc import PoleTracking
+import whacc
 import glob
 import os
 import matplotlib.pyplot as plt
@@ -11,7 +7,7 @@ import matplotlib.pyplot as plt
 mp4_path = "/Users/phil/Dropbox/Autocurator/testing_data/MP4s"
 search_term = '*.mp4'
 ##
-folders_with_MP4s = PSM_testbed.WhACC.utils.recursive_dir_finder(mp4_path, search_term)
+folders_with_MP4s = whacc.utils.recursive_dir_finder(mp4_path, search_term)
 print(folders_with_MP4s, sep='\n')
 # folders_with_MP4s = folders_with_MP4s[:2]
 

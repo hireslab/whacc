@@ -3,7 +3,7 @@ label_key = 'labels'
 
 
 
-from PSM_testbed.WhACC.touch_curation_GUI import touch_gui
+from whacc.touch_curation_GUI import touch_gui
 
 touch_gui(H5_file_name, label_key, 'new_labels')
 '''test

@@ -1,5 +1,5 @@
 import h5py
-from PSM_testbed.WhACC import utils
+from whacc import utils
 
 import matplotlib.pyplot as plt
 import numpy as np

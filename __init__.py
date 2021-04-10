@@ -1,3 +1,3 @@
-from . import WhACC
+from . import whacc
 
 
