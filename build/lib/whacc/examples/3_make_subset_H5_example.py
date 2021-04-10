@@ -19,8 +19,9 @@ sg.plot_all_onset_or_offset(sg.offset_list, fig_size = [10, 10])
 
 import matplotlib.pyplot as plt
 import numpy as np
+# plot the labels to see how they look. ideal is a lot near 0 or 1 and little in between
 plt.figure()
-plt.hist(sg.labels, 100) # histogram pf labels. should be mostly 0's and 1's if not then the predictions might be really bad
+plt.hist(sg.labels, 100)
 
 plt.figure()
 for i, k in enumerate(sg.onset_list):
@@ -35,9 +36,6 @@ for k in sg.chunks:
 plt.figure()
 plt.hist(len_c, 100)
 
-save_on = False
-if save_on:
-    sg.save_subset_h5_file()
 
 
-utils.get_class_info(sg)
+sg.save_subset_h5_file()
