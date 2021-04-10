@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 import copy
-# import tqdm
 from tqdm import tqdm
 import time
 
@@ -43,9 +42,9 @@ def original_image(x):
     return image
 
 
-def run_multiple_H5_files(H5_file_list, model_2_load, append_model_and_labels_to_name_string=False,
-                          batch_size=1000, model_2_load_is_model=False, save_on=False,
-                          label_save_name=None, disable_TQDM=False, add_to_different_h5_file_NAME=None) -> object:
+def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_labels_to_name_string=False,
+                              batch_size=1000, model_2_load_is_model=False, save_on=False,
+                              label_save_name=None, disable_TQDM=False, add_to_different_h5_file_NAME=None) -> object:
     for i, H5_file in enumerate(H5_file_list):
         # save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename = 1) # only matters if file is corrupt otherwise doesnt touch it
 

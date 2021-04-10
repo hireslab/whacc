@@ -7,7 +7,7 @@ from PIL import ImageTk, Image
 # import time
 
 
-# from PSM_testbed.WhACC import utils
+# from whacc import utils
 
 # H5_file_name = '/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AH0667x170317_JON/AH0667x170317-.h5'
 # label_key = 'labels'

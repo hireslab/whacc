@@ -7,3 +7,4 @@ natsort>=7.1.1
 matplotlib>=3.4.1
 tqdm>=4.42.1
 Pillow>=8.2.0
+tensorflow~=2.4.1

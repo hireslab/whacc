@@ -1,7 +1,7 @@
 import h5py
 import numpy as numpy
 import matplotlib.pyplot as plt
-from PSM_testbed.WhACC.utils import *
+from whacc.utils import *
 
 
 class subset_h5_generator:
@@ -11,7 +11,9 @@ class subset_h5_generator:
         with h5py.File(self.h5_img_file, 'r') as F:
             self.labels = F[label_key][:]
 
-    def save_subset_h5_file(self, file_save_name):
+    def save_subset_h5_file(self, file_save_name = None):
+        if file_save_name is None:
+            file_save_name = self.h5_img_file.split('.h5')[0] + '_subset.h5'
         all_labels = self.labels
         all_inds = self.all_inds
         try:
@@ -56,26 +58,36 @@ class subset_h5_generator:
         return keep_mask
 
     def get_example_segments(self,
-                             seg_len_look_dist=10,
+                             seg_len_before_touch=10,
+                             seg_len_after_touch=10,
                              min_y=.2,
                              max_y=.8,
                              num_to_sample=40,
-                             num_high_prob_past_max_y=10,
+                             min_seg_size=6,
                              start_and_stop_pole_times=None):
         labels = self.labels
         if start_and_stop_pole_times is not None:
-            pole_mask = self.keep_only_pole_up_times(start_pole=start_and_stop_pole_times[0],stop_pole=start_and_stop_pole_times[1])
+            pole_mask = self.keep_only_pole_up_times(start_pole=start_and_stop_pole_times[0],
+                                                     stop_pole=start_and_stop_pole_times[1])
             labels = labels * pole_mask
         segs = numpy.where(labels > min_y)[0]
-        chunks, chunk_inds = group_consecutives(segs, step=1)
+        chunks_tmp, chunk_inds = group_consecutives(segs, step=1)
+        # print(len(chunks))
+        chunks = []
+        for i, k in enumerate(chunks_tmp):
+            if len(k) >= min_seg_size:
+                chunks.append(chunks_tmp[i])
+                # print('popped it')
+        # print(len(chunks))
+        self.chunks = chunks  ###remove
         good_up_segs = []
         good_down_segs = []
         for k in chunks:
             try:
-                up = labels[k[0] - seg_len_look_dist:k[0]]
-                down = labels[k[-1] - 1:k[-1] + seg_len_look_dist - 1]
-                assert (len(up) == seg_len_look_dist)
-                assert (len(down) == seg_len_look_dist)
+                up = labels[k[0] - seg_len_before_touch:k[0]]
+                down = labels[k[-1] - 1:k[-1] + seg_len_before_touch - 1]
+                assert (len(up) == seg_len_before_touch)
+                assert (len(down) == seg_len_before_touch)
                 good_up_segs.append(numpy.min(up) <= min_y)
                 good_down_segs.append(numpy.min(down) <= min_y)
             except:  # if we are on the edges just toss these
@@ -93,15 +105,15 @@ class subset_h5_generator:
         onset_list = []
         offset_list = []
         for k1, k2 in zip(up_start, down_start):
-            onset_list.append(numpy.asarray(range(k1 - seg_len_look_dist, k1 + num_high_prob_past_max_y)))
+            onset_list.append(numpy.asarray(range(k1 - seg_len_before_touch, k1 + seg_len_after_touch)))
             all_inds = numpy.concatenate((all_inds, onset_list[-1]))
-            offset_list.append(numpy.asarray(range(k2 - 1 - num_high_prob_past_max_y, k2 - 1 + seg_len_look_dist)))
+            offset_list.append(numpy.asarray(range(k2 - 1 - seg_len_after_touch, k2 - 1 + seg_len_before_touch)))
             all_inds = numpy.concatenate((all_inds, offset_list[-1]))
-        retrain_H5_info = {'seg_len_look_dist': seg_len_look_dist,
+        retrain_H5_info = {'seg_len_look_dist': seg_len_before_touch,
                            'min_y': min_y,
                            'max_y': max_y,
                            'num_to_sample': num_to_sample,
-                           'num_high_prob_past_max_y': num_high_prob_past_max_y}
+                           'num_high_prob_past_max_y': seg_len_after_touch}
         inds_2_add = numpy.linspace(0, 50 - 1, ).astype(int)
         all_inds = numpy.concatenate((numpy.float64(inds_2_add), all_inds))
         self.all_inds = all_inds

@@ -16,7 +16,7 @@
 # import itertools
 # from pathlib import Path
 
-from PSM_testbed.WhACC import utils
+from whacc import utils
 
 pole_file_list = utils.get_files("/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AH1131X26032020ses338_SAMSON/", '*.mat')
 

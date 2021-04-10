@@ -206,7 +206,7 @@ class PoleTracking():
         file_name = self.save_base_name+ '.h5'
         print('H5 file saving under the name ' + file_name)
         print('and placed in ' + save_directory)
-        with h5py.File(save_directory + file_name + '.h5', 'w') as hf:  # auto close in case of failure
+        with h5py.File(save_directory + file_name, 'w') as hf:  # auto close in case of failure
 
             hf.create_dataset('file_name_nums', data=fnn)
             hf.create_dataset('images', data=final_stack)
