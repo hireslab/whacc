@@ -6,14 +6,156 @@ import h5py
 import copy
 from tqdm import tqdm
 import time
+import os
 
 
-def img_stacker(img_array, max_num_frames_wide=8):
-    '''
-    '''
+class h5_iterative_creator():
+    """
+    Create an H5 file using a for loop easily. used to create the augmented H5 file for training
+
+    Attributes:
+
+    :param h5_new_full_file_name: full path name to your H5 file to be created
+    :type h5_new_full_file_name: string
+    :param overwrite_if_file_exists: overwrites the h5 file if it already exists
+    :type overwrite_if_file_exists: bool
+    :param max_img_height: default 61, only the max size, can be larger in case you are going to have larger images
+    :type max_img_height: int
+    :param max_img_width: default 61, only the max size, can be larger in case you are going to have larger images
+    :type max_img_width: int
+    :param close_and_open_on_each_iteration: default True, this prevents the user form forgetting to close H5 which
+        can lead to corruption.
+    :type close_and_open_on_each_iteration: bool
+    """
+
+    def __init__(self, h5_new_full_file_name,
+                 overwrite_if_file_exists=False,
+                 max_img_height=61,
+                 max_img_width=61,
+                 close_and_open_on_each_iteration=True):
+
+        if not close_and_open_on_each_iteration:
+            print('**remember to CLOSE the H5 file when you are done!!!**')
+        if overwrite_if_file_exists and os.path.isfile(h5_new_full_file_name):
+            os.remove(h5_new_full_file_name)
+        self.h5_full_file_name = h5_new_full_file_name
+        self.hf_file = h5py.File(h5_new_full_file_name, "w")
+
+        self.max_img_height = max_img_height
+        self.max_img_width = max_img_width
+        self._went_thorugh_create_h5 = False
+        self.close_it = close_and_open_on_each_iteration
+        if self.close_it:
+            self.hf_file.close()
+
+    def add_to_h5(self, images, labels):
+        if self.close_it:
+            self.open_or_close_h5('r+')
+        if self._went_thorugh_create_h5:  # already initalized with the correct size
+            self._add_next_chunk_to_h5(images, labels)
+        else:
+            self._create_h5(images, labels)
+        if self.close_it:
+            self.open_or_close_h5('close')
+
+    def _create_h5(self, images, labels):
+        self.hf_file.create_dataset("multiplier", [1], h5py.h5t.STD_I32LE, data=images.shape[0])
+        self.hf_file.create_dataset('images',
+                                    np.shape(images),
+                                    h5py.h5t.STD_U8BE,
+                                    maxshape=(None, self.max_img_height, self.max_img_width, 3),
+                                    chunks=True)
+        self.hf_file.create_dataset('labels',
+                                    np.shape(labels),
+                                    h5py.h5t.STD_I32LE,
+                                    maxshape=(None,),
+                                    chunks=True)
+        self._went_thorugh_create_h5 = True
+
+    def _add_next_chunk_to_h5(self, images, labels):
+        self.hf_file['images'].resize(self.hf_file['images'].shape[0] + images.shape[0], axis=0)
+        self.hf_file['labels'].resize(self.hf_file['labels'].shape[0] + labels.shape[0], axis=0)
+
+        self.hf_file['images'][-images.shape[0]:] = images
+        self.hf_file['labels'][-labels.shape[0]:] = labels
+
+    def read_h5(self):
+        self.open_or_close_h5('r')
+        print('''**remember to CLOSE the H5 file when you are done!!!** with ".close_h5()" method''')
+
+    def close_h5(self):
+        self.open_or_close_h5('close')
+
+    def open_or_close_h5(self, mode_='r'):
+        """
+
+        :param mode_: mode can be H5py modes 'r', 'r+' 'w' (w overwrites file!) etc OR 'close' to
+        # ensure it is closed. separate function to prevent a bunch of try statements
+        :type mode_: str
+        """
+        try:
+            self.hf_file.close()
+        finally:
+            if mode_.lower() != 'close':
+                self.hf_file = h5py.File(self.h5_full_file_name, mode_)
+
+
+#
+def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
+    """
+    :param keras_datagen: --from keras.preprocessing.image import ImageDataGenerator-- keras_datagen = ImageDataGenerator(...)
+    :type keras_datagen: keras.preprocessing.image.ImageDataGenerator
+    :param num_aug_ims: number of augmented images to generate from single input image
+    :type num_aug_ims: int
+    :param num_reg_ims: number of copies of in_img to produce. will be stacked at the beginning of all_augment variable.
+        Use dot see augmentation when testing and can be useful if splitting into many H5s if you want an original in each.
+    :type num_reg_ims: int
+    :param in_img: numpy array either 3D with color channel for the last dim ot 2D
+    :type in_img: numpy array
+    :param in_label: the label associate with in_img. simply repeats it creating 'out_labels' the be size of 'all_augment'
+    :type in_label: int
+    :return:
+        - all_augment - augmented images stacked
+        - out_labels - repeated array of length len(all_augment) created from in_label
+    :rtype:
+        - all_augment - numpy array
+        - out_labels - numpy array
+    """
+    if len(in_img.shape) == 2:  # or not np.any(np.asarray(in_img.shape)==3)
+        in_img = np.repeat(in_img[..., np.newaxis], 3, -1)  # for 2D arrays without color channels
+    set_zoom = keras_datagen.zoom_range
+    in_img = np.expand_dims(in_img, 0)
+
+    it = keras_datagen.flow(in_img, batch_size=1)
+    all_augment = np.tile(in_img, [num_reg_ims, 1, 1, 1])
+    for i in range(num_aug_ims):  ##
+        if set_zoom != [0, 0]:  # if zoom is being used...
+            # keras 'zoom' is annoying. it zooms x and y differently randomly
+            # in order to get an equal zoom I use the following workaround.
+            z_val = np.random.uniform(low=set_zoom[0], high=set_zoom[1])
+            keras_datagen.zoom_range = [z_val, z_val]
+            it = keras_datagen.flow(in_img, batch_size=1)
+        batch = it.next()
+        image = batch[0].astype('uint8')
+        all_augment = np.append(all_augment, np.expand_dims(image, 0), 0)
+    out_labels = np.repeat(in_label, sum([num_aug_ims, num_reg_ims]))
+    keras_datagen.zoom_range = set_zoom
+    return all_augment, out_labels
+
+
+def img_unstacker(img_array, num_frames_wide=8):
+    """
+    unstacks image stack and combines them into one large image for easy display. reads left to right and then top to bottom.
+    :param img_array: stacked image array
+    :type img_array: numpy array
+    :param num_frames_wide: width of destacked image. if = 8 with input 20 images it will be 8 wide 3 long and 4 blank images
+    :type num_frames_wide: int
+    :return: - im_stack - one large image
+    :rtype: numpy array
+    """
     im_stack = None
     for i, k in enumerate(img_array):
-        if i % max_num_frames_wide == 0:
+        if i % num_frames_wide == 0:
             if i != 0:  # stack it
                 if im_stack is None:
                     im_stack = im_stack_tmp
@@ -22,9 +164,9 @@ def img_stacker(img_array, max_num_frames_wide=8):
             im_stack_tmp = k  # must be at the end
         else:
             im_stack_tmp = np.hstack((im_stack_tmp, k))
-    x = max_num_frames_wide - len(img_array) % max_num_frames_wide
+    x = num_frames_wide - len(img_array) % num_frames_wide
     if x != 0:
-        if x != max_num_frames_wide:
+        if x != num_frames_wide:
             for i in range(x):
                 im_stack_tmp = np.hstack((im_stack_tmp, np.ones_like(k)))
     if im_stack is None:
@@ -37,6 +179,7 @@ def img_stacker(img_array, max_num_frames_wide=8):
 def original_image(x):
     """
     This is used to transform batch generated images [-1 1] to the original image [0,255] for plotting
+
     """
     image = tf.cast((x + 1) * 127.5, tf.uint8)
     return image
@@ -44,11 +187,40 @@ def original_image(x):
 
 def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_labels_to_name_string=False,
                               batch_size=1000, model_2_load_is_model=False, save_on=False,
-                              label_save_name=None, disable_TQDM=False, add_to_different_h5_file_NAME=None) -> object:
+                              label_save_name=None, disable_TQDM=False,
+                              save_labels_to_this_h5_file_instead=None) -> object:
+    """
+    :param H5_file_list: list of string(s) of H5 file full paths
+    :type H5_file_list: list
+    :param model_2_load: either full path to model folder ending with ".ckpt" OR the loaded model itself. if the later,
+        the user MUST set "model_2_load_is_model" is True and "label_save_name" must be explicitly defined (when using model
+        path we use the model name to name the labels).
+    :type model_2_load:
+    :param append_model_and_labels_to_name_string: if True label_save_name =  'MODEL__' + label_save_name + '__labels',
+        it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find
+        those labels for later processing.
+    :type append_model_and_labels_to_name_string: bool
+    :param batch_size: number of images to process per batch,  -- slower prediction speeds << ideal predictionsspeed <<
+        memory issues and crashes -- 1000 is normally pretty good on Google CoLab
+    :type batch_size: int
+    :param model_2_load_is_model:lets the program know if you are directly inserting a model (instead of a path to model folder) 
+    :type model_2_load_is_model: bool 
+    :param save_on: saves to H5 file. either the original H5 (image source) or new H5 if a path to "save_labels_to_this_h5_file_instead"
+        is given
+    :type save_on: bool
+    :param label_save_name: h5 file key used to save the labels to, default is 'MODEL__' + **model_name** + '__labels'
+    :type label_save_name: string
+    :param disable_TQDM: if True, turns off loading progress bar.
+    :type disable_TQDM: bool
+    :param save_labels_to_this_h5_file_instead: full path to H5 file to insert labels into instead of the H5 used as teh image source
+    :type save_labels_to_this_h5_file_instead: string
+    :return: labels_2_save - predictions ranging from 0 to 1 for not-touch and touch respectively
+    :rtype: numpy array
+    """
     for i, H5_file in enumerate(H5_file_list):
         # save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename = 1) # only matters if file is corrupt otherwise doesnt touch it
 
-        GEN = ImageBatchGenerator(batch_size, [H5_file])
+        gen = ImageBatchGenerator(batch_size, [H5_file])
 
         if model_2_load_is_model:
             if label_save_name is None and save_on == True:
@@ -56,7 +228,9 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
             model = model_2_load
         else:
             if label_save_name is None:
-                label_save_name = model_2_load.split('/')[-1].split('.')[0]
+                label_save_name = model_2_load.split(os.path.sep)[-1].split('.')[0]
+                label_save_name = 'MODEL__' + label_save_name + '__labels'
+                append_model_and_labels_to_name_string = False  # turn off because defaults to this naming scheme if user doesnt put in name
             model = tf.keras.models.load_model(model_2_load)
 
         if append_model_and_labels_to_name_string:
@@ -65,8 +239,8 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
         start = time.time()
         labels_2_save = np.asarray([])
 
-        for k in tqdm(range(GEN.__len__()), disable=disable_TQDM):
-            TMP_X, tmp_y = GEN.getXandY(k)
+        for k in tqdm(range(gen.__len__()), disable=disable_TQDM):
+            TMP_X, tmp_y = gen.getXandY(k)
             outY = model.predict(TMP_X)
             labels_2_save = np.append(labels_2_save, outY)
         total_seconds = time.time() - start
@@ -74,8 +248,8 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
         print(str(time_per_mil) + ' seconds per 1 million images predicted')
 
         if save_on:
-            if add_to_different_h5_file_NAME is not None:  # add to differnt H5 file
-                H5_file = add_to_different_h5_file_NAME  # otherwise it will add to the current H5 file
+            if save_labels_to_this_h5_file_instead is not None:  # add to differnt H5 file
+                H5_file = save_labels_to_this_h5_file_instead  # otherwise it will add to the current H5 file
                 # based on the loop through "H5_file_list" above
             try:
                 hf.close()

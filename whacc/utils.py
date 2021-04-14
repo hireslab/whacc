@@ -13,6 +13,15 @@ import h5py
 #             if k[0] != '_':
 #                 print(k)
 def get_class_info(c, include_underscores=False):
+    """
+    look at the variables and methods of a class, prints an aligned list with their respective 'type'
+    :param c: calss variable
+    :type c: class
+    :param include_underscores: display teh secret methods/variables starting with '_'
+    :type include_underscores:  bool
+    :return: prints out a nice list of the modethods
+
+    """
     names = []
     type_to_print = []
     for k in dir(c):
@@ -37,7 +46,7 @@ def group_consecutives(vals, step=1):
     result_ind = run_ind
     expect = None
     for k, v in enumerate(vals):
-        if (v == expect):
+        if v == expect:
             if not (np.isnan(v)):
                 # print(v)
                 # print(expect)
@@ -62,7 +71,7 @@ def group_consecutives(vals, step=1):
 def get_h5s(base_dir):
     H5_file_list = []
     for path in Path(base_dir + '/').rglob('*.h5'):
-        H5_file_list.append(str(path.parent) + '/' + path.name)
+        H5_file_list.append(str(path.parent) + os.path.sep + path.name)
     H5_file_list.sort()
     print_list_with_inds(H5_file_list)
     return H5_file_list
@@ -71,7 +80,7 @@ def get_h5s(base_dir):
 def check_if_file_lists_match(H5_list_LAB, H5_list_IMG):
     for h5_LAB, h5_IMG in zip(H5_list_LAB, H5_list_IMG):
         try:
-            assert h5_IMG.split('/')[-1] in h5_LAB
+            assert h5_IMG.split(os.path.sep)[-1] in h5_LAB
         except:
             print('DO NOT CONTINUE --- some files do not match on your lists try again')
             assert (1 == 0)
@@ -79,7 +88,7 @@ def check_if_file_lists_match(H5_list_LAB, H5_list_IMG):
 
 
 def print_list_with_inds(list_in):
-    _ = [print(str(i) + ' ' + k.split('/')[-1]) for i, k in enumerate(list_in)]
+    _ = [print(str(i) + ' ' + k.split(os.path.sep)[-1]) for i, k in enumerate(list_in)]
 
 
 def get_model_list(model_save_dir):
@@ -110,14 +119,14 @@ def get_model_list(model_save_dir):
     print('These are all the models to choose from...')
     model_2_load_all = sorted(glob.glob(model_save_dir + '/*.ckpt'))
     # print(*model_2_load_all, sep = '\n')
-    _ = [print(str(i) + ' ' + k.split('/')[-1]) for i, k in enumerate(model_2_load_all)]
+    _ = [print(str(i) + ' ' + k.split(os.path.sep)[-1]) for i, k in enumerate(model_2_load_all)]
     return model_2_load_all
 
 
 def get_files(base_dir, search_term):
     file_list = []
     for path in Path(base_dir + '/').rglob(search_term):
-        file_list.append(str(path.parent) + '/' + path.name)
+        file_list.append(str(path.parent) + os.path.sep + path.name)
     file_list.sort()
     return file_list
 
