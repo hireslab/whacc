@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: whacc
-Version: 0.0.13
+Version: 0.0.15
 Summary: largely automatic and customizable pipeline for creating a CNN to predict whiskers contacting objects
 Home-page: UNKNOWN
 Author: Phillip Maire
@@ -22,7 +22,7 @@ Description: ![](./pictures/whacc-logo-v1.png) <br />
         ![](./pictures/frame_distribution.png)
         
         ## Code contributors:
-        WhACC code and software was originally developed by Jonathan Cheung and Phillip Maire in the laboratory of [Samuel Andrew Hires](https://www.hireslab.org/). 
+        WhACC code and software was originally developed by Phillip Maire and Jonathan Cheung in the laboratory of [Samuel Andrew Hires](https://www.hireslab.org/). 
         
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3

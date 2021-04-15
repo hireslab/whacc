@@ -9,6 +9,39 @@ import time
 import os
 
 
+def split_h5(h5_to_split, split_percentages, temp_base_name):
+    """
+    Randomly splits images from H5 file into however many other H5 files for test or validation etc.
+    :param h5_to_split: full file name to the H5 file to be split
+    :type h5_to_split: string
+    :param split_percentages: list of numbers, can be ints [20, 1, 1] and or floats [.8, .2], it simply takes the sume and creates a percentage
+    :type split_percentages: list
+    :param temp_base_name: full fapth to new h5 file e.g "'/Users/phil/tempH5_" and the program will add the number and the ".h5"
+    in this case tempH5_0.h5, tempH5_1.h5, tempH5_2.h5 etc.
+    :type temp_base_name: str
+    :return: names of the files
+    :rtype:
+    """
+    split_percentages = split_percentages / np.sum(split_percentages)
+    # assert(sum(split_percentages)==1)
+    final_names = []
+    with h5py.File(h5_to_split, 'r') as h:
+        L = len(h['labels'][:])
+        mixed_inds = np.random.choice(L, L, replace=False)
+        random_frame_inds = np.split(mixed_inds, np.ceil(L * np.cumsum(split_percentages[:-1])).astype('int'))
+        for i, k in enumerate(split_percentages):
+            ims = []
+            labels = []
+            for ii in random_frame_inds[i]:
+                ims.append(h['images'][ii])
+                labels.append(h['labels'][ii])
+            final_names.append(temp_base_name + '_' + str(i) + '.h5')
+            with h5py.File(final_names[-1], 'w') as h2:
+                h2.create_dataset('images', data=np.asarray(ims).astype('uint8'))
+                h2.create_dataset('labels', data=np.float64(labels))
+    return final_names
+
+
 class h5_iterative_creator():
     """
     Create an H5 file using a for loop easily. used to create the augmented H5 file for training
@@ -64,12 +97,14 @@ class h5_iterative_creator():
                                     np.shape(images),
                                     h5py.h5t.STD_U8BE,
                                     maxshape=(None, self.max_img_height, self.max_img_width, 3),
-                                    chunks=True)
+                                    chunks=True,
+                                    data=images)
         self.hf_file.create_dataset('labels',
                                     np.shape(labels),
                                     h5py.h5t.STD_I32LE,
                                     maxshape=(None,),
-                                    chunks=True)
+                                    chunks=True,
+                                    data=labels)
         self._went_thorugh_create_h5 = True
 
     def _add_next_chunk_to_h5(self, images, labels):
