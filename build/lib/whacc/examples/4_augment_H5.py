@@ -17,7 +17,7 @@ datagen = ImageDataGenerator(rotation_range=360,  #
                              brightness_range=[0.2, 1.1])  #
 
 with h5py.File(h5_subset_file, 'r') as hf:
-    test_img = hf['images'][0]  # grab a single image
+    test_img = hf['images'][10]  # grab a single image
 
 aug_ims, _ = image_tools.augment_helper(datagen, 99, 1, test_img,
                                         -1)  # make 99 of the augmented images and output 1 of th original
@@ -35,16 +35,12 @@ plt.imshow(image_tools.img_unstacker(aug_ims_2, 10))
 plt.show()
 
 # once we are happy with out augmentation process we can make an augmented H5 file using class
-new_H5_file = h5_subset_file.split('.')[0] + '_AUG.h5' # create new file name based on teh original H5 name
+
+new_H5_file = h5_subset_file.split('.')[0] + '_AUG.h5'
 
 h5creator = image_tools.h5_iterative_creator(new_H5_file, overwrite_if_file_exists=True,
                                              close_and_open_on_each_iteration=True)
-
-utils.get_class_info(h5creator)
 with h5py.File(h5_subset_file, 'r') as hf:
     for image, label in tqdm(zip(hf['images'][:], hf['labels'][:])):
         aug_img_stack, labels_stack = image_tools.augment_helper(datagen, 30, 0, image, label)
-        aug_img_stack = gaussian_noise.augment_images(aug_img_stack) # optional
         h5creator.add_to_h5(aug_img_stack, labels_stack)
-
-
