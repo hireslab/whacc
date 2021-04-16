@@ -24,9 +24,8 @@ def split_h5(h5_to_split, split_percentages, temp_base_name):
 
     Returns
     -------
-    type
-        names of the files
 
+    
     """
     split_percentages = split_percentages / np.sum(split_percentages)
     # assert(sum(split_percentages)==1)
@@ -70,6 +69,7 @@ class h5_iterative_creator():
     Returns
     -------
 
+    
     """
 
     def __init__(self, h5_new_full_file_name,
@@ -105,6 +105,7 @@ class h5_iterative_creator():
         Returns
         -------
 
+        
         """
         if self.close_it:
             self.open_or_close_h5('r+')
@@ -128,6 +129,7 @@ class h5_iterative_creator():
         Returns
         -------
 
+        
         """
         self.hf_file.create_dataset("multiplier", [1], h5py.h5t.STD_I32LE, data=images.shape[0])
         self.hf_file.create_dataset('images',
@@ -157,6 +159,7 @@ class h5_iterative_creator():
         Returns
         -------
 
+        
         """
         self.hf_file['images'].resize(self.hf_file['images'].shape[0] + images.shape[0], axis=0)
         self.hf_file['labels'].resize(self.hf_file['labels'].shape[0] + labels.shape[0], axis=0)
@@ -185,6 +188,7 @@ class h5_iterative_creator():
         Returns
         -------
 
+        
         """
         try:
             self.hf_file.close()
@@ -213,11 +217,8 @@ def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
 
     Returns
     -------
-    all_augment - numpy array
-- out_labels - numpy array
-        all_augment - augmented images stacked
-        - out_labels - repeated array of length len(all_augment) created from in_label
 
+    
     """
     if len(in_img.shape) == 2:  # or not np.any(np.asarray(in_img.shape)==3)
         in_img = np.repeat(in_img[..., np.newaxis], 3, -1)  # for 2D arrays without color channels
@@ -253,9 +254,8 @@ def img_unstacker(img_array, num_frames_wide=8):
 
     Returns
     -------
-    numpy array
-        im_stack - one large image
 
+    
     """
     im_stack = None
     for i, k in enumerate(img_array):
@@ -291,6 +291,7 @@ def original_image(x):
     Returns
     -------
 
+    
     """
     image = tf.cast((x + 1) * 127.5, tf.uint8)
     return image
@@ -304,57 +305,38 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
 
     Parameters
     ----------
-    H5_file_list :
-        param model_2_load:
-    append_model_and_labels_to_name_string :
-        Default value = False)
-    batch_size :
-        Default value = 1000)
-    model_2_load_is_model :
-        Default value = False)
-    save_on :
-        Default value = False)
-    label_save_name :
-        Default value = None)
-    disable_TQDM :
-        Default value = False)
-    save_labels_to_this_h5_file_instead :
-        Default value = None)
-    model_2_load :
-        
+    H5_file_list : list: list
+        list of string(s) of H5 file full paths
+    model_2_load : param append_model_and_labels_to_name_string: if True label_save_name =  'MODEL__' + label_save_name + '__labels',
+    it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find
+    those labels for later processing.
+        either full path to model folder ending with ".ckpt" OR the loaded model itself. if the later,
+        the user MUST set "model_2_load_is_model" is True and "label_save_name" must be explicitly defined (when using model
+        path we use the model name to name the labels).
+    append_model_and_labels_to_name_string : bool
+        if True label_save_name =  'MODEL__' + label_save_name + '__labels',it is a simple way to keep track of labels
+        form many models in a single H5 file. also make sit easier to find those labels for later processing. (Default value = False)
+    batch_size : int
+        number of images to process per batch,  -- slower prediction speeds << ideal predictionsspeed <<
+        memory issues and crashes -- 1000 is normally pretty good on Google CoLab (Default value = 1000)
+    model_2_load_is_model : bool
+        lets the program know if you are directly inserting a model (instead of a path to model folder) (Default value = False)
+    save_on : bool
+        saves to H5 file. either the original H5 (image source) or new H5 if a path to "save_labels_to_this_h5_file_instead"
+        is given (Default value = False)
+    label_save_name : string
+        h5 file key used to save the labels to, default is 'MODEL__' + **model_name** + '__labels'
+    disable_TQDM : bool
+        if True, turns off loading progress bar. (Default value = False)
+    save_labels_to_this_h5_file_instead : string
+        full path to H5 file to insert labels into instead of the H5 used as teh image source (Default value = None)
 
     Returns
     -------
+    numpy array
+        labels_2_save - predictions ranging from 0 to 1 for not-touch and touch respectively
 
     """
-    # """
-    # :param H5_file_list: list of string(s) of H5 file full paths
-    # :type H5_file_list: list
-    # :param model_2_load: either full path to model folder ending with ".ckpt" OR the loaded model itself. if the later,
-    #     the user MUST set "model_2_load_is_model" is True and "label_save_name" must be explicitly defined (when using model
-    #     path we use the model name to name the labels).
-    # :type model_2_load:
-    # :param append_model_and_labels_to_name_string: if True label_save_name =  'MODEL__' + label_save_name + '__labels',
-    #     it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find
-    #     those labels for later processing.
-    # :type append_model_and_labels_to_name_string: bool
-    # :param batch_size: number of images to process per batch,  -- slower prediction speeds << ideal predictionsspeed <<
-    #     memory issues and crashes -- 1000 is normally pretty good on Google CoLab
-    # :type batch_size: int
-    # :param model_2_load_is_model:lets the program know if you are directly inserting a model (instead of a path to model folder)
-    # :type model_2_load_is_model: bool
-    # :param save_on: saves to H5 file. either the original H5 (image source) or new H5 if a path to "save_labels_to_this_h5_file_instead"
-    #     is given
-    # :type save_on: bool
-    # :param label_save_name: h5 file key used to save the labels to, default is 'MODEL__' + **model_name** + '__labels'
-    # :type label_save_name: string
-    # :param disable_TQDM: if True, turns off loading progress bar.
-    # :type disable_TQDM: bool
-    # :param save_labels_to_this_h5_file_instead: full path to H5 file to insert labels into instead of the H5 used as teh image source
-    # :type save_labels_to_this_h5_file_instead: string
-    # :return: labels_2_save - predictions ranging from 0 to 1 for not-touch and touch respectively
-    # :rtype: numpy array
-    # """
     for i, H5_file in enumerate(H5_file_list):
         # save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename = 1) # only matters if file is corrupt otherwise doesnt touch it
 
@@ -415,6 +397,7 @@ def get_total_frame_count(h5_file_list):
     Returns
     -------
 
+    
     """
     total_frame_count = []
     for H5_file in h5_file_list:
@@ -445,6 +428,7 @@ def batch_size_file_ind_selector(num_in_each, batch_size):
     Returns
     -------
 
+    
     """
     break_into = np.ceil(np.array(num_in_each) / batch_size)
     extract_inds = np.array([])
@@ -469,6 +453,7 @@ def reset_to_first_frame_for_each_file_ind(file_inds_for_H5_extraction):
     Returns
     -------
 
+    
     """
     subtract_for_index = []
     for k, elem in enumerate(file_inds_for_H5_extraction):
@@ -530,6 +515,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
         Returns
         -------
 
+        
         """
         b = self.batch_size
         h = self.H5_file_list
@@ -560,6 +546,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
         Returns
         -------
 
+        
         """
         # rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
         # rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
