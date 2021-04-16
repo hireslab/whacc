@@ -39,10 +39,11 @@ from natsort import os_sorted
 
 
 class PoleTracking():
-    def __init__(self, video_directory, template_png_full_name = None):
+    def __init__(self, video_directory, template_png_full_name = None, use_narrow_search_to_speed_up = True):
         self.video_directory = video_directory
         self.video_files = os_sorted(glob.glob(os.path.join(video_directory, '*.mp4')))
         self.base_names = [os.path.basename(n).split('.')[0] for n in self.video_files]
+        self.use_narrow_search_to_speed_up = use_narrow_search_to_speed_up
         if template_png_full_name is not None:
             self.load_template_img(template_png_full_name)
     @staticmethod
@@ -111,25 +112,18 @@ class PoleTracking():
         img_stack, loc_stack = self.track(video_file=video_file)
         self.plot_pole_center(video_file=video_file, location_stack=loc_stack)
 
-    # def get_trial_and_file_names(self, print_them = False, num_to_print = None):
-    #     trial_sep = [k for k in self.video_files[0] if k in '-_'][-1] # '-_' are the possible separators
-    #     self.trial_nums = list(map(lambda s: re.search("^.*" +trial_sep+"([0-9]+)\.", s).group(1), self.video_files))
-    #
-    #     self.ascii_video_files = [os.path.basename(n).encode("ascii", "ignore") for n in self.video_files]
-    #     if print_them:# print the files and trial nums to make sure they are sorted and match and what the user expects
-    #       print(*['FILE->' + os.path.basename(k1).split('.')[0] + '  '+ k2+'<-TRIAL#' for k1, k2 in
-    #               zip(self.video_files[:num_to_print], self.trial_nums[:num_to_print])], sep='\n')
+
     def get_trial_and_file_names(self, pos_seps='-_', custom_trial_nums=None, custom_ascii_video_files=None,
                                  print_them=False, num_to_print=None):
-        '''
-      pos_seps - (default = '-_') will find the number after the last of '-' or '_', can add custom notion for your naming scheme
-      custom_trial_nums - override in case this is needed, list of strings equal to length of number of MP4 files (e.g. ['9', '10', '11'])
-      custom_ascii_video_files - override in case this is needed, list of full file names (without base directory) must be ASCII format for saving in H5 file later
-      to convert LIST (list of strings) to ASCII us -> ASCII_LIST = [os.path.basename(n).encode("ascii", "ignore") for n in LIST]
-      print_them - just used to print the names to make sure the naming is what you want before spending all the time tracking.
-      num_to_print - if print_them == True, this will print the first N number of files (used in case you are doing a huge amount
+        """
+        pos_seps - (default = '-_') will find the number after the last of '-' or '_', can add custom notion for your naming scheme
+        custom_trial_nums - override in case this is needed, list of strings equal to length of number of MP4 files (e.g. ['9', '10', '11'])
+        custom_ascii_video_files - override in case this is needed, list of full file names (without base directory) must be ASCII format for saving in H5 file later
+        to convert LIST (list of strings) to ASCII us -> ASCII_LIST = [os.path.basename(n).encode("ascii", "ignore") for n in LIST]
+        print_them - just used to print the names to make sure the naming is what you want before spending all the time tracking.
+        num_to_print - if print_them == True, this will print the first N number of files (used in case you are doing a huge amount
         of videos from many directories, we dont want to overload the terminal window)
-      '''
+        """
         print(self.video_files[0])
         trial_sep = [k for k in self.video_files[0] if k in pos_seps][-1]  # '-_' are the possible separators
         self.trial_sep = trial_sep
@@ -244,7 +238,7 @@ class PoleTracking():
         pole_center = 0
         while success:
             # preprocess image
-            if 'frame' in locals():
+            if 'frame' in locals() and self.use_narrow_search_to_speed_up:
                 frame, crop_top_left, crop_bottom_right = self.crop_image_from_top_left(og_frame,
                                                                                         top_left + crop_top_left,
                                                                                         [w, h], 3)
