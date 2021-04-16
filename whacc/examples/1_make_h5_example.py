@@ -32,5 +32,18 @@ for i in PT:
 
 for i in PT:
     output_h5 = PT[i].track_all_and_save()
-    asdfasdfasdf
+
+#
+# #
+# import h5py
+# import copy
+# with h5py.File('/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AH0667x170317_JON/AH0667x170317.h5', 'r') as hf:
+#     # print(hf.keys())
+#     L = copy.deepcopy(hf['locations'][:])
+#
+#
+# #
+# import matplotlib.pyplot as plt
+# a = L[0]
+# plt.plot(a[:, 0], a[:, 1], 'ko')
 

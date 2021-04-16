@@ -40,12 +40,23 @@ from natsort import os_sorted
 
 class PoleTracking():
     def __init__(self, video_directory, template_png_full_name = None, use_narrow_search_to_speed_up = True):
+        """
+
+        Parameters
+        ----------
+        video_directory :
+        template_png_full_name :
+        use_narrow_search_to_speed_up : Normally the pole tracker will find the pole in the first frame, then crop the rest of the frames
+        in that video to make the search faster. If tracking seems off center of wrong. turn this value to 'False'. Note: this
+        will make pole tracking much longer ~ 4-5 times longer
+        """
         self.video_directory = video_directory
         self.video_files = os_sorted(glob.glob(os.path.join(video_directory, '*.mp4')))
         self.base_names = [os.path.basename(n).split('.')[0] for n in self.video_files]
         self.use_narrow_search_to_speed_up = use_narrow_search_to_speed_up
         if template_png_full_name is not None:
             self.load_template_img(template_png_full_name)
+
     @staticmethod
     def crop_image_from_top_left(im, crop_top_left, size_crop, inflation=1):
         """
@@ -63,7 +74,7 @@ class PoleTracking():
         crop_bottom_right = crop_top_left + np.asarray(size_crop)
         crop_bottom_right2 = crop_bottom_right.copy()
 
-        # adjust crop in case of out of bounds 
+        # adjust crop in case of out of bounds
         crop_top_left[crop_top_left < 0] = 0
         crop_bottom_right[crop_bottom_right > imshape] = np.asarray(imshape)[crop_bottom_right > imshape]
 
@@ -109,7 +120,7 @@ class PoleTracking():
         """
         video_file = np.random.choice(self.video_files, 1)[0]
         print('Testing tracking on ' + video_file)
-        img_stack, loc_stack = self.track(video_file=video_file)
+        img_stack, loc_stack, max_val_stack = self.track(video_file=video_file)
         self.plot_pole_center(video_file=video_file, location_stack=loc_stack)
 
 
@@ -157,10 +168,12 @@ class PoleTracking():
         - trial_nums_and_frame_nums: 2 dimensional vector. Row 1 = trial number and Row 2 = frame number in that trial
         - in_range: this is pre-allocation for the pole in range tracker
         """
+        loc_stack_all = []
+        max_val_stack_all = []
         # get the video names and trial numbers -- this is a sperate function
         # so that you can run it before you process the videos to see if the
-        # naming and numbers are correct. can run PT.get_trial_and_file_names(True)           
-        # to print out the file lists before you run everyhting to check. 
+        # naming and numbers are correct. can run PT.get_trial_and_file_names(True)
+        # to print out the file lists before you run everyhting to check.
         if 'ascii_video_files' not in [k for k in dir(self) if '_' not in k[0]]:
             self.get_trial_and_file_names()
         # create image stack
@@ -169,7 +182,9 @@ class PoleTracking():
         img_stack_shape = 0
         for video in tqdm(self.video_files):
             if verbose: print('Tracking... ' + video)
-            img_stack, loc_stack = self.track(video_file=video)
+            img_stack, loc_stack, max_val_stack = self.track(video_file=video)
+            loc_stack_all.append(loc_stack)
+            max_val_stack_all.append(max_val_stack)
             final_stack.extend(img_stack)
             img_stack_shape += img_stack.shape[0]
         elapsed = time.time() - start
@@ -193,7 +208,7 @@ class PoleTracking():
         in_range = np.empty(labels.shape)
         in_range[:] = np.nan
 
-        # check to make sure sizes across file names and images are equal 
+        # check to make sure sizes across file names and images are equal
         assert (len(fnn) == len(final_stack))
 
         # save data in H5 with name similar to video
@@ -201,7 +216,8 @@ class PoleTracking():
         print('H5 file saving under the name ' + file_name)
         print('and placed in ' + save_directory)
         with h5py.File(save_directory + file_name, 'w') as hf:  # auto close in case of failure
-
+            hf.create_dataset('locations_x_y', data=loc_stack_all)
+            hf.create_dataset('max_val_stack', data=max_val_stack_all)
             hf.create_dataset('file_name_nums', data=fnn)
             hf.create_dataset('images', data=final_stack)
             hf.create_dataset('labels', data=labels)
@@ -212,7 +228,7 @@ class PoleTracking():
             hf.create_dataset('full_file_names', data=self.ascii_video_files)
 
             hf.close()
-        return save_directory + file_name
+        return save_directory + file_name,
 
     def track(self, video_file, match_method='cv2.TM_CCOEFF'):
         """
@@ -223,7 +239,7 @@ class PoleTracking():
 
         # width and height of img_stacks will be that of template (61x61)
         w, h = self.template_image.shape[::-1]
-
+        max_match_val = []
         # open video at directory
         video = cv2.VideoCapture(video_file)
         if (video.isOpened() == False):
@@ -236,12 +252,25 @@ class PoleTracking():
         method = eval(match_method)
         crop_top_left = 0
         pole_center = 0
+        tmp1 = 0
         while success:
             # preprocess image
+            tmp1 = tmp1+1
             if 'frame' in locals() and self.use_narrow_search_to_speed_up:
+                # frame, crop_top_left, crop_bottom_right = self.crop_image_from_top_left(og_frame,
+                #                                                                         top_left + crop_top_left,
+                #                                                                         [w, h], 3)
+                # print('\n')
+                # print(top_left)
+                # print(crop_top_left)
+                # print(crop_top_left2)
+                # print('_____')
                 frame, crop_top_left, crop_bottom_right = self.crop_image_from_top_left(og_frame,
-                                                                                        top_left + crop_top_left,
-                                                                                        [w, h], 3)
+                                                                                            crop_top_left2,
+                                                                                            [w, h], 3)
+
+                # if tmp1>10:
+                #     asdfasdf
             else:
                 frame = og_frame
             img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype('uint8').copy()
@@ -249,6 +278,7 @@ class PoleTracking():
             # Apply template Matching
             res = cv2.matchTemplate(img, self.template_image, method)
             min_val, max_val, min_loc, top_left = cv2.minMaxLoc(res)
+            max_match_val.append(max_val)
             top_left = np.flip(np.asarray(top_left))
 
             # crop image and store
@@ -264,7 +294,7 @@ class PoleTracking():
 
         img_stack = np.array(img_list, dtype=np.uint8)
         loc_stack = np.array(loc_list)
-        return img_stack, loc_stack
+        return img_stack, loc_stack, max_match_val
 
     def set_pole_template(self, cust_template):
         '''custom template: input must be the 2D matrix (no color channels) and dtype=uint8'''
