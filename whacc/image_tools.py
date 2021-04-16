@@ -10,17 +10,23 @@ import os
 
 
 def split_h5(h5_to_split, split_percentages, temp_base_name):
-    """
-    Randomly splits images from H5 file into however many other H5 files for test or validation etc.
-    :param h5_to_split: full file name to the H5 file to be split
-    :type h5_to_split: string
-    :param split_percentages: list of numbers, can be ints [20, 1, 1] and or floats [.8, .2], it simply takes the sume and creates a percentage
-    :type split_percentages: list
-    :param temp_base_name: full fapth to new h5 file e.g "'/Users/phil/tempH5_" and the program will add the number and the ".h5"
-    in this case tempH5_0.h5, tempH5_1.h5, tempH5_2.h5 etc.
-    :type temp_base_name: str
-    :return: names of the files
-    :rtype:
+    """Randomly splits images from H5 file into however many other H5 files for test or validation etc.
+
+    Parameters
+    ----------
+    h5_to_split : string
+        full file name to the H5 file to be split
+    split_percentages : list
+        list of numbers, can be ints [20, 1, 1] and or floats [.8, .2], it simply takes the sume and creates a percentage
+    temp_base_name : str
+        full fapth to new h5 file e.g "'/Users/phil/tempH5_" and the program will add the number and the ".h5"
+        in this case tempH5_0.h5, tempH5_1.h5, tempH5_2.h5 etc.
+
+    Returns
+    -------
+    type
+        names of the files
+
     """
     split_percentages = split_percentages / np.sum(split_percentages)
     # assert(sum(split_percentages)==1)
@@ -43,22 +49,27 @@ def split_h5(h5_to_split, split_percentages, temp_base_name):
 
 
 class h5_iterative_creator():
-    """
-    Create an H5 file using a for loop easily. used to create the augmented H5 file for training
-
+    """Create an H5 file using a for loop easily. used to create the augmented H5 file for training
+    
     Attributes:
 
-    :param h5_new_full_file_name: full path name to your H5 file to be created
-    :type h5_new_full_file_name: string
-    :param overwrite_if_file_exists: overwrites the h5 file if it already exists
-    :type overwrite_if_file_exists: bool
-    :param max_img_height: default 61, only the max size, can be larger in case you are going to have larger images
-    :type max_img_height: int
-    :param max_img_width: default 61, only the max size, can be larger in case you are going to have larger images
-    :type max_img_width: int
-    :param close_and_open_on_each_iteration: default True, this prevents the user form forgetting to close H5 which
+    Parameters
+    ----------
+    h5_new_full_file_name : string
+        full path name to your H5 file to be created
+    overwrite_if_file_exists : bool
+        overwrites the h5 file if it already exists
+    max_img_height : int
+        default 61, only the max size, can be larger in case you are going to have larger images
+    max_img_width : int
+        default 61, only the max size, can be larger in case you are going to have larger images
+    close_and_open_on_each_iteration : bool
+        default True, this prevents the user form forgetting to close H5 which
         can lead to corruption.
-    :type close_and_open_on_each_iteration: bool
+
+    Returns
+    -------
+
     """
 
     def __init__(self, h5_new_full_file_name,
@@ -82,6 +93,19 @@ class h5_iterative_creator():
             self.hf_file.close()
 
     def add_to_h5(self, images, labels):
+        """
+
+        Parameters
+        ----------
+        images :
+            param labels:
+        labels :
+            
+
+        Returns
+        -------
+
+        """
         if self.close_it:
             self.open_or_close_h5('r+')
         if self._went_thorugh_create_h5:  # already initalized with the correct size
@@ -92,6 +116,19 @@ class h5_iterative_creator():
             self.open_or_close_h5('close')
 
     def _create_h5(self, images, labels):
+        """
+
+        Parameters
+        ----------
+        images :
+            param labels:
+        labels :
+            
+
+        Returns
+        -------
+
+        """
         self.hf_file.create_dataset("multiplier", [1], h5py.h5t.STD_I32LE, data=images.shape[0])
         self.hf_file.create_dataset('images',
                                     np.shape(images),
@@ -108,6 +145,19 @@ class h5_iterative_creator():
         self._went_thorugh_create_h5 = True
 
     def _add_next_chunk_to_h5(self, images, labels):
+        """
+
+        Parameters
+        ----------
+        images :
+            param labels:
+        labels :
+            
+
+        Returns
+        -------
+
+        """
         self.hf_file['images'].resize(self.hf_file['images'].shape[0] + images.shape[0], axis=0)
         self.hf_file['labels'].resize(self.hf_file['labels'].shape[0] + labels.shape[0], axis=0)
 
@@ -115,18 +165,26 @@ class h5_iterative_creator():
         self.hf_file['labels'][-labels.shape[0]:] = labels
 
     def read_h5(self):
+        """ """
         self.open_or_close_h5('r')
         print('''**remember to CLOSE the H5 file when you are done!!!** with ".close_h5()" method''')
 
     def close_h5(self):
+        """ """
         self.open_or_close_h5('close')
 
     def open_or_close_h5(self, mode_='r'):
         """
 
-        :param mode_: mode can be H5py modes 'r', 'r+' 'w' (w overwrites file!) etc OR 'close' to
-        # ensure it is closed. separate function to prevent a bunch of try statements
-        :type mode_: str
+        Parameters
+        ----------
+        mode_ : str
+            mode can be H5py modes 'r', 'r+' 'w' (w overwrites file!) etc OR 'close' to
+            # ensure it is closed. separate function to prevent a bunch of try statements (Default value = 'r')
+
+        Returns
+        -------
+
         """
         try:
             self.hf_file.close()
@@ -138,23 +196,28 @@ class h5_iterative_creator():
 #
 def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
     """
-    :param keras_datagen: --from keras.preprocessing.image import ImageDataGenerator-- keras_datagen = ImageDataGenerator(...)
-    :type keras_datagen: keras.preprocessing.image.ImageDataGenerator
-    :param num_aug_ims: number of augmented images to generate from single input image
-    :type num_aug_ims: int
-    :param num_reg_ims: number of copies of in_img to produce. will be stacked at the beginning of all_augment variable.
+
+    Parameters
+    ----------
+    keras_datagen : keras_datagen: keras_datagen: keras.preprocessing.image.ImageDataGenerator
+        from keras.preprocessing.image import ImageDataGenerator-- keras_datagen = ImageDataGenerator(...)
+    num_aug_ims : int
+        number of augmented images to generate from single input image
+    num_reg_ims : int
+        number of copies of in_img to produce. will be stacked at the beginning of all_augment variable.
         Use dot see augmentation when testing and can be useful if splitting into many H5s if you want an original in each.
-    :type num_reg_ims: int
-    :param in_img: numpy array either 3D with color channel for the last dim ot 2D
-    :type in_img: numpy array
-    :param in_label: the label associate with in_img. simply repeats it creating 'out_labels' the be size of 'all_augment'
-    :type in_label: int
-    :return:
-        - all_augment - augmented images stacked
+    in_img : numpy array
+        numpy array either 3D with color channel for the last dim ot 2D
+    in_label : int
+        the label associate with in_img. simply repeats it creating 'out_labels' the be size of 'all_augment'
+
+    Returns
+    -------
+    all_augment - numpy array
+- out_labels - numpy array
+        all_augment - augmented images stacked
         - out_labels - repeated array of length len(all_augment) created from in_label
-    :rtype:
-        - all_augment - numpy array
-        - out_labels - numpy array
+
     """
     if len(in_img.shape) == 2:  # or not np.any(np.asarray(in_img.shape)==3)
         in_img = np.repeat(in_img[..., np.newaxis], 3, -1)  # for 2D arrays without color channels
@@ -179,14 +242,20 @@ def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
 
 
 def img_unstacker(img_array, num_frames_wide=8):
-    """
-    unstacks image stack and combines them into one large image for easy display. reads left to right and then top to bottom.
-    :param img_array: stacked image array
-    :type img_array: numpy array
-    :param num_frames_wide: width of destacked image. if = 8 with input 20 images it will be 8 wide 3 long and 4 blank images
-    :type num_frames_wide: int
-    :return: - im_stack - one large image
-    :rtype: numpy array
+    """unstacks image stack and combines them into one large image for easy display. reads left to right and then top to bottom.
+
+    Parameters
+    ----------
+    img_array : numpy array
+        stacked image array
+    num_frames_wide : int
+        width of destacked image. if = 8 with input 20 images it will be 8 wide 3 long and 4 blank images (Default value = 8)
+
+    Returns
+    -------
+    numpy array
+        im_stack - one large image
+
     """
     im_stack = None
     for i, k in enumerate(img_array):
@@ -212,8 +281,15 @@ def img_unstacker(img_array, num_frames_wide=8):
 
 
 def original_image(x):
-    """
-    This is used to transform batch generated images [-1 1] to the original image [0,255] for plotting
+    """This is used to transform batch generated images [-1 1] to the original image [0,255] for plotting
+
+    Parameters
+    ----------
+    x :
+        
+
+    Returns
+    -------
 
     """
     image = tf.cast((x + 1) * 127.5, tf.uint8)
@@ -225,33 +301,60 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
                               label_save_name=None, disable_TQDM=False,
                               save_labels_to_this_h5_file_instead=None) -> object:
     """
-    :param H5_file_list: list of string(s) of H5 file full paths
-    :type H5_file_list: list
-    :param model_2_load: either full path to model folder ending with ".ckpt" OR the loaded model itself. if the later,
-        the user MUST set "model_2_load_is_model" is True and "label_save_name" must be explicitly defined (when using model
-        path we use the model name to name the labels).
-    :type model_2_load:
-    :param append_model_and_labels_to_name_string: if True label_save_name =  'MODEL__' + label_save_name + '__labels',
-        it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find
-        those labels for later processing.
-    :type append_model_and_labels_to_name_string: bool
-    :param batch_size: number of images to process per batch,  -- slower prediction speeds << ideal predictionsspeed <<
-        memory issues and crashes -- 1000 is normally pretty good on Google CoLab
-    :type batch_size: int
-    :param model_2_load_is_model:lets the program know if you are directly inserting a model (instead of a path to model folder) 
-    :type model_2_load_is_model: bool 
-    :param save_on: saves to H5 file. either the original H5 (image source) or new H5 if a path to "save_labels_to_this_h5_file_instead"
-        is given
-    :type save_on: bool
-    :param label_save_name: h5 file key used to save the labels to, default is 'MODEL__' + **model_name** + '__labels'
-    :type label_save_name: string
-    :param disable_TQDM: if True, turns off loading progress bar.
-    :type disable_TQDM: bool
-    :param save_labels_to_this_h5_file_instead: full path to H5 file to insert labels into instead of the H5 used as teh image source
-    :type save_labels_to_this_h5_file_instead: string
-    :return: labels_2_save - predictions ranging from 0 to 1 for not-touch and touch respectively
-    :rtype: numpy array
+
+    Parameters
+    ----------
+    H5_file_list :
+        param model_2_load:
+    append_model_and_labels_to_name_string :
+        Default value = False)
+    batch_size :
+        Default value = 1000)
+    model_2_load_is_model :
+        Default value = False)
+    save_on :
+        Default value = False)
+    label_save_name :
+        Default value = None)
+    disable_TQDM :
+        Default value = False)
+    save_labels_to_this_h5_file_instead :
+        Default value = None)
+    model_2_load :
+        
+
+    Returns
+    -------
+
     """
+    # """
+    # :param H5_file_list: list of string(s) of H5 file full paths
+    # :type H5_file_list: list
+    # :param model_2_load: either full path to model folder ending with ".ckpt" OR the loaded model itself. if the later,
+    #     the user MUST set "model_2_load_is_model" is True and "label_save_name" must be explicitly defined (when using model
+    #     path we use the model name to name the labels).
+    # :type model_2_load:
+    # :param append_model_and_labels_to_name_string: if True label_save_name =  'MODEL__' + label_save_name + '__labels',
+    #     it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find
+    #     those labels for later processing.
+    # :type append_model_and_labels_to_name_string: bool
+    # :param batch_size: number of images to process per batch,  -- slower prediction speeds << ideal predictionsspeed <<
+    #     memory issues and crashes -- 1000 is normally pretty good on Google CoLab
+    # :type batch_size: int
+    # :param model_2_load_is_model:lets the program know if you are directly inserting a model (instead of a path to model folder)
+    # :type model_2_load_is_model: bool
+    # :param save_on: saves to H5 file. either the original H5 (image source) or new H5 if a path to "save_labels_to_this_h5_file_instead"
+    #     is given
+    # :type save_on: bool
+    # :param label_save_name: h5 file key used to save the labels to, default is 'MODEL__' + **model_name** + '__labels'
+    # :type label_save_name: string
+    # :param disable_TQDM: if True, turns off loading progress bar.
+    # :type disable_TQDM: bool
+    # :param save_labels_to_this_h5_file_instead: full path to H5 file to insert labels into instead of the H5 used as teh image source
+    # :type save_labels_to_this_h5_file_instead: string
+    # :return: labels_2_save - predictions ranging from 0 to 1 for not-touch and touch respectively
+    # :rtype: numpy array
+    # """
     for i, H5_file in enumerate(H5_file_list):
         # save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename = 1) # only matters if file is corrupt otherwise doesnt touch it
 
@@ -302,6 +405,17 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
 
 
 def get_total_frame_count(h5_file_list):
+    """
+
+    Parameters
+    ----------
+    h5_file_list :
+        
+
+    Returns
+    -------
+
+    """
     total_frame_count = []
     for H5_file in h5_file_list:
         H5 = h5py.File(H5_file, 'r')
@@ -312,15 +426,25 @@ def get_total_frame_count(h5_file_list):
 
 
 def batch_size_file_ind_selector(num_in_each, batch_size):
-    """
-    batch_size_file_ind_selector - needed for ImageBatchGenerator to know which H5 file index
+    """batch_size_file_ind_selector - needed for ImageBatchGenerator to know which H5 file index
     to use depending on the iteration number used in __getitem__ in the generator.
     this all depends on the variable batch size.
-
+    
     Example: the output of the following...
     batch_size_file_ind_selector([4000, 4001, 3999], [2000])
     would be [0, 0, 1, 1, 1, 2, 2] which means that there are 2 chunks in the first
     H5 file, 3 in the second and 2 in the third based on chunk size of 2000
+
+    Parameters
+    ----------
+    num_in_each :
+        param batch_size:
+    batch_size :
+        
+
+    Returns
+    -------
+
     """
     break_into = np.ceil(np.array(num_in_each) / batch_size)
     extract_inds = np.array([])
@@ -332,11 +456,19 @@ def batch_size_file_ind_selector(num_in_each, batch_size):
 
 # file_inds_for_H5_extraction is the same as extract_inds output from the above function
 def reset_to_first_frame_for_each_file_ind(file_inds_for_H5_extraction):
-    """
-    reset_to_first_frame_for_each_file_ind - uses the output of batch_size_file_ind_selector
+    """reset_to_first_frame_for_each_file_ind - uses the output of batch_size_file_ind_selector
     to determine when to reset the index for each individual H5 file. using the above example
     the out put would be [0, 0, 2, 2, 2, 5, 5], each would be subtracted from the indexing to
     set the position of the index to 0 for each new H5 file.
+
+    Parameters
+    ----------
+    file_inds_for_H5_extraction :
+        
+
+    Returns
+    -------
+
     """
     subtract_for_index = []
     for k, elem in enumerate(file_inds_for_H5_extraction):
@@ -348,6 +480,7 @@ def reset_to_first_frame_for_each_file_ind(file_inds_for_H5_extraction):
 
 
 class ImageBatchGenerator(keras.utils.Sequence):
+    """ """
 
     def __init__(self, batch_size, h5_file_list):
         num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
@@ -387,6 +520,17 @@ class ImageBatchGenerator(keras.utils.Sequence):
         return rgb_tensor
 
     def getXandY(self, num_2_extract):
+        """
+
+        Parameters
+        ----------
+        num_2_extract :
+            
+
+        Returns
+        -------
+
+        """
         b = self.batch_size
         h = self.H5_file_list
         i = self.file_inds_for_H5_extraction
@@ -403,12 +547,20 @@ class ImageBatchGenerator(keras.utils.Sequence):
         return rgb_tensor, raw_Y
 
     def image_transform(self, raw_X):
-        '''
-        input num_of_images x H x W, image input must be grayscale
+        """input num_of_images x H x W, image input must be grayscale
         MobileNetV2 requires certain image dimensions
         We use N x 61 x 61 formated images
         self.IMG_SIZE is a single number to change the images into, images must be square
-        '''
+
+        Parameters
+        ----------
+        raw_X :
+            
+
+        Returns
+        -------
+
+        """
         # rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
         # rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
         # rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
@@ -426,6 +578,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
         return rgb_tensor
 
     def plot_batch_distribution(self):
+        """ """
         # randomly select a batch and generate images and labels
         batch_num = np.random.choice(np.arange(0, self.__len__()))
         samp_x, samp_y = self.getXandY(batch_num)
