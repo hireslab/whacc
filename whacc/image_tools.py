@@ -308,8 +308,10 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
     H5_file_list : list: list
         list of string(s) of H5 file full paths
     model_2_load : param append_model_and_labels_to_name_string: if True label_save_name =  'MODEL__' + label_save_name + '__labels',
-    it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find
-    those labels for later processing.
+        
+    it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find :
+        
+    those labels for later processing. :
         either full path to model folder ending with ".ckpt" OR the loaded model itself. if the later,
         the user MUST set "model_2_load_is_model" is True and "label_save_name" must be explicitly defined (when using model
         path we use the model name to name the labels).
@@ -333,9 +335,8 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
 
     Returns
     -------
-    numpy array
-        labels_2_save - predictions ranging from 0 to 1 for not-touch and touch respectively
 
+    
     """
     for i, H5_file in enumerate(H5_file_list):
         # save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename = 1) # only matters if file is corrupt otherwise doesnt touch it

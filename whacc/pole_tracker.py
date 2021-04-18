@@ -40,16 +40,7 @@ from natsort import os_sorted
 
 class PoleTracking():
     def __init__(self, video_directory, template_png_full_name = None, use_narrow_search_to_speed_up = True):
-        """
-
-        Parameters
-        ----------
-        video_directory :
-        template_png_full_name :
-        use_narrow_search_to_speed_up : Normally the pole tracker will find the pole in the first frame, then crop the rest of the frames
-        in that video to make the search faster. If tracking seems off center of wrong. turn this value to 'False'. Note: this
-        will make pole tracking much longer ~ 4-5 times longer
-        """
+    """ """
         self.video_directory = video_directory
         self.video_files = os_sorted(glob.glob(os.path.join(video_directory, '*.mp4')))
         self.base_names = [os.path.basename(n).split('.')[0] for n in self.video_files]
@@ -59,9 +50,23 @@ class PoleTracking():
 
     @staticmethod
     def crop_image_from_top_left(im, crop_top_left, size_crop, inflation=1):
-        """
-        This is an accessory function to track to improve tracking speed. This crops the initial large image into a smaller one, based on the inflation rate.
+        """This is an accessory function to track to improve tracking speed. This crops the initial large image into a smaller one, based on the inflation rate.
         Inflation rate of 3 = 3 x 3 template image size around the first guessed pole location.
+
+        Parameters
+        ----------
+        im :
+            
+        crop_top_left :
+            
+        size_crop :
+            
+        inflation :
+             (Default value = 1)
+
+        Returns
+        -------
+
         """
         inflation_shift = np.floor((np.asarray(size_crop) * (inflation - 1)) / 2).astype(int)
 
@@ -99,6 +104,19 @@ class PoleTracking():
         return cropped_image, crop_top_left2, crop_bottom_right2
 
     def plot_pole_center(self, video_file, location_stack):
+        """
+
+        Parameters
+        ----------
+        video_file :
+            
+        location_stack :
+            
+
+        Returns
+        -------
+
+        """
         video = cv2.VideoCapture(video_file)
         success, frame = video.read()
         location_stack = location_stack + np.array(self.template_image.shape) / 2
@@ -114,9 +132,15 @@ class PoleTracking():
             threshold) + ' pixels from the mean pole location.')
 
     def track_random(self) -> object:
-        """
-        This function will randomly grab a video file within the directory and
+        """This function will randomly grab a video file within the directory and
         track all frames within there and plot tracked locations over the original image
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+
         """
         video_file = np.random.choice(self.video_files, 1)[0]
         print('Testing tracking on ' + video_file)
@@ -126,14 +150,30 @@ class PoleTracking():
 
     def get_trial_and_file_names(self, pos_seps='-_', custom_trial_nums=None, custom_ascii_video_files=None,
                                  print_them=False, num_to_print=None):
-        """
-        pos_seps - (default = '-_') will find the number after the last of '-' or '_', can add custom notion for your naming scheme
+        """pos_seps - (default = '-_') will find the number after the last of '-' or '_', can add custom notion for your naming scheme
         custom_trial_nums - override in case this is needed, list of strings equal to length of number of MP4 files (e.g. ['9', '10', '11'])
         custom_ascii_video_files - override in case this is needed, list of full file names (without base directory) must be ASCII format for saving in H5 file later
         to convert LIST (list of strings) to ASCII us -> ASCII_LIST = [os.path.basename(n).encode("ascii", "ignore") for n in LIST]
         print_them - just used to print the names to make sure the naming is what you want before spending all the time tracking.
         num_to_print - if print_them == True, this will print the first N number of files (used in case you are doing a huge amount
         of videos from many directories, we dont want to overload the terminal window)
+
+        Parameters
+        ----------
+        pos_seps :
+             (Default value = '-_')
+        custom_trial_nums :
+             (Default value = None)
+        custom_ascii_video_files :
+             (Default value = None)
+        print_them :
+             (Default value = False)
+        num_to_print :
+             (Default value = None)
+
+        Returns
+        -------
+
         """
         print(self.video_files[0])
         trial_sep = [k for k in self.video_files[0] if k in pos_seps][-1]  # '-_' are the possible separators
@@ -156,6 +196,19 @@ class PoleTracking():
                     zip(self.video_files[:num_to_print], self.trial_nums[:num_to_print])], sep='\n')
 
     def track_all_and_save(self, verbose=False, save_directory=None):
+        """
+
+        Parameters
+        ----------
+        verbose :
+             (Default value = False)
+        save_directory :
+             (Default value = None)
+
+        Returns
+        -------
+
+        """
         if save_directory is None:
             save_directory = self.video_directory
         save_directory = save_directory + os.path.sep
@@ -231,10 +284,20 @@ class PoleTracking():
         return save_directory + file_name,
 
     def track(self, video_file, match_method='cv2.TM_CCOEFF'):
-        """
-        this function scans a template image across each frame of the video to identify the pole location.
+        """this function scans a template image across each frame of the video to identify the pole location.
         This assumes there is a pole at each frame. Cropping optimizes scanning by ~80% and uses the first frame
         as a point of reference.
+
+        Parameters
+        ----------
+        video_file :
+            
+        match_method :
+             (Default value = 'cv2.TM_CCOEFF')
+
+        Returns
+        -------
+
         """
 
         # width and height of img_stacks will be that of template (61x61)
@@ -297,17 +360,69 @@ class PoleTracking():
         return img_stack, loc_stack, max_match_val
 
     def set_pole_template(self, cust_template):
-        '''custom template: input must be the 2D matrix (no color channels) and dtype=uint8'''
+        """custom template: input must be the 2D matrix (no color channels) and dtype=uint8
+
+        Parameters
+        ----------
+        cust_template :
+            
+
+        Returns
+        -------
+
+        """
         self.template_image = cust_template
     def save_template_img(self, cust_save_dir = '', cust_save_name = 'template_img'):
-        '''save current template image to use for similar session'''
+        """save current template image to use for similar session
+
+        Parameters
+        ----------
+        cust_save_dir :
+             (Default value = '')
+        cust_save_name :
+             (Default value = 'template_img')
+
+        Returns
+        -------
+
+        """
         img = Image.fromarray(self.template_image, 'L')
         full_save_name = cust_save_dir + os.path.sep +cust_save_name + '.png'
         img.save(full_save_name)
         print('SAVED... '+full_save_name)
     def load_template_img(self, img_to_load):
+        """
+
+        Parameters
+        ----------
+        img_to_load :
+            
+
+        Returns
+        -------
+
+        """
         self.template_image = np.asarray(Image.open(img_to_load))
     def cut_out_pole_template(self, video_directory, crop_size=[61, 61], frame_num=2000, file_ind=None):
+        """
+
+        Parameters
+        ----------
+        video_directory :
+            
+        crop_size :
+             (Default value = [61)
+        61] :
+            
+        frame_num :
+             (Default value = 2000)
+        file_ind :
+             (Default value = None)
+
+        Returns
+        -------
+
+        """
         top_left = str(crop_size[0]) + ' , ' + str(crop_size[1])
         crop_size = np.asarray(crop_size)
         if file_ind is None:
