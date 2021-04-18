@@ -26,6 +26,7 @@ setup.py
 ./whacc/examples/gui_example.py
 ./whacc/examples/h5_tester.py
 ./whacc/examples/scratch.py
+./whacc/examples/track_moving_test.py
 whacc/__init__.py
 whacc/image_tools.py
 whacc/pole_tracker.py
@@ -47,3 +48,4 @@ whacc/examples/add_pole_times.py
 whacc/examples/gui_example.py
 whacc/examples/h5_tester.py
 whacc/examples/scratch.py
+whacc/examples/track_moving_test.py

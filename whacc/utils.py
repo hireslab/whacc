@@ -13,13 +13,19 @@ import h5py
 #             if k[0] != '_':
 #                 print(k)
 def get_class_info(c, include_underscores=False):
-    """
-    look at the variables and methods of a class, prints an aligned list with their respective 'type'
-    :param c: calss variable
-    :type c: class
-    :param include_underscores: display teh secret methods/variables starting with '_'
-    :type include_underscores:  bool
-    :return: prints out a nice list of the modethods
+    """look at the variables and methods of a class, prints an aligned list with their respective 'type'
+
+    Parameters
+    ----------
+    c : class
+        calss variable
+    include_underscores : bool
+        display teh secret methods/variables starting with '_' (Default value = False)
+
+    Returns
+    -------
+    type
+        prints out a nice list of the modethods
 
     """
     names = []
@@ -40,6 +46,19 @@ def get_class_info(c, include_underscores=False):
 
 
 def group_consecutives(vals, step=1):
+    """
+
+    Parameters
+    ----------
+    vals :
+        
+    step :
+         (Default value = 1)
+
+    Returns
+    -------
+
+    """
     run = []
     run_ind = []
     result = run
@@ -69,6 +88,17 @@ def group_consecutives(vals, step=1):
 
 
 def get_h5s(base_dir):
+    """
+
+    Parameters
+    ----------
+    base_dir :
+        
+
+    Returns
+    -------
+
+    """
     H5_file_list = []
     for path in Path(base_dir + '/').rglob('*.h5'):
         H5_file_list.append(str(path.parent) + os.path.sep + path.name)
@@ -78,6 +108,19 @@ def get_h5s(base_dir):
 
 
 def check_if_file_lists_match(H5_list_LAB, H5_list_IMG):
+    """
+
+    Parameters
+    ----------
+    H5_list_LAB :
+        
+    H5_list_IMG :
+        
+
+    Returns
+    -------
+
+    """
     for h5_LAB, h5_IMG in zip(H5_list_LAB, H5_list_IMG):
         try:
             assert h5_IMG.split(os.path.sep)[-1] in h5_LAB
@@ -88,10 +131,32 @@ def check_if_file_lists_match(H5_list_LAB, H5_list_IMG):
 
 
 def print_list_with_inds(list_in):
+    """
+
+    Parameters
+    ----------
+    list_in :
+        
+
+    Returns
+    -------
+
+    """
     _ = [print(str(i) + ' ' + k.split(os.path.sep)[-1]) for i, k in enumerate(list_in)]
 
 
 def get_model_list(model_save_dir):
+    """
+
+    Parameters
+    ----------
+    model_save_dir :
+        
+
+    Returns
+    -------
+
+    """
     print('These are all the models to choose from...')
     model_2_load_all = glob.glob(model_save_dir + '/*.ckpt')
     print_list_with_inds(model_2_load_all)
@@ -99,11 +164,21 @@ def get_model_list(model_save_dir):
 
 
 def recursive_dir_finder(base_path, search_term):
-    '''
-  enter base directory and search term to find all the directories in base directory 
-  with files matching the search_term. output a sorted list of directories. 
-  e.g. -> recursive_dir_finder('/content/mydropbox/', '*.mp4')
-  '''
+    """enter base directory and search term to find all the directories in base directory
+      with files matching the search_term. output a sorted list of directories.
+      e.g. -> recursive_dir_finder('/content/mydropbox/', '*.mp4')
+
+    Parameters
+    ----------
+    base_path :
+        
+    search_term :
+        
+
+    Returns
+    -------
+
+    """
     matching_folders = []
     for root, dirs, files in os.walk(base_path):
         if glob.glob(root + '/' + search_term):
@@ -116,6 +191,17 @@ def recursive_dir_finder(base_path, search_term):
 
 
 def get_model_list(model_save_dir):
+    """
+
+    Parameters
+    ----------
+    model_save_dir :
+        
+
+    Returns
+    -------
+
+    """
     print('These are all the models to choose from...')
     model_2_load_all = sorted(glob.glob(model_save_dir + '/*.ckpt'))
     # print(*model_2_load_all, sep = '\n')
@@ -124,6 +210,19 @@ def get_model_list(model_save_dir):
 
 
 def get_files(base_dir, search_term):
+    """
+
+    Parameters
+    ----------
+    base_dir :
+        
+    search_term :
+        
+
+    Returns
+    -------
+
+    """
     file_list = []
     for path in Path(base_dir + '/').rglob(search_term):
         file_list.append(str(path.parent) + os.path.sep + path.name)
@@ -142,21 +241,37 @@ use in my package. contact phillip.maire@gmail.com if you have any questions.
 
 
 def loadmat(filename):
-    '''
-    this function should be called instead of direct spio.loadmat
+    """this function should be called instead of direct spio.loadmat
     as it cures the problem of not properly recovering python dictionaries
     from mat files. It calls the function check keys to cure all entries
     which are still mat-objects
-    '''
+
+    Parameters
+    ----------
+    filename :
+        
+
+    Returns
+    -------
+
+    """
     data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
     return _check_keys(data)
 
 
 def _check_keys(dict):
-    '''
-    checks if entries in dictionary are mat-objects. If yes
+    """checks if entries in dictionary are mat-objects. If yes
     todict is called to change them to nested dictionaries
-    '''
+
+    Parameters
+    ----------
+    dict :
+        
+
+    Returns
+    -------
+
+    """
     for key in dict:
         if isinstance(dict[key], spio.matlab.mio5_params.mat_struct):
             dict[key] = _todict(dict[key])
@@ -164,9 +279,17 @@ def _check_keys(dict):
 
 
 def _todict(matobj):
-    '''
-    A recursive function which constructs from matobjects nested dictionaries
-    '''
+    """A recursive function which constructs from matobjects nested dictionaries
+
+    Parameters
+    ----------
+    matobj :
+        
+
+    Returns
+    -------
+
+    """
     dict = {}
     for strg in matobj._fieldnames:
         elem = matobj.__dict__[strg]

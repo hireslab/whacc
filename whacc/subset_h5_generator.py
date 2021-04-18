@@ -5,6 +5,7 @@ from whacc.utils import *
 
 
 class subset_h5_generator:
+    """ """
     def __init__(self, h5_img_file, label_key):
         self.h5_img_file = h5_img_file
         self.label_key = label_key
@@ -12,6 +13,17 @@ class subset_h5_generator:
             self.labels = F[label_key][:]
 
     def save_subset_h5_file(self, file_save_name = None):
+        """
+
+        Parameters
+        ----------
+        file_save_name :
+             (Default value = None)
+
+        Returns
+        -------
+
+        """
         if file_save_name is None:
             file_save_name = self.h5_img_file.split('.h5')[0] + '_subset.h5'
         all_labels = self.labels
@@ -35,6 +47,19 @@ class subset_h5_generator:
                 print('finished with ' + file_save_name)
 
     def plot_pole_grab(self, im_stack, fig_size=None):
+        """
+
+        Parameters
+        ----------
+        im_stack :
+            
+        fig_size :
+             (Default value = None)
+
+        Returns
+        -------
+
+        """
         if fig_size is None:
             width_plt = self.retrain_H5_info['num_high_prob_past_max_y'] + self.retrain_H5_info['seg_len_look_dist'] * 2
             plt.figure(figsize=[width_plt, 5])
@@ -43,6 +68,19 @@ class subset_h5_generator:
         _ = plt.imshow(im_stack)
 
     def keep_only_pole_up_times(self, start_pole, stop_pole):
+        """
+
+        Parameters
+        ----------
+        start_pole :
+            
+        stop_pole :
+            
+
+        Returns
+        -------
+
+        """
         with h5py.File(self.h5_img_file, 'r') as hf:
             cumsum_frames = np.concatenate((np.asarray([0]), np.cumsum(hf['trial_nums_and_frame_nums'][1, :])))
             tot_frames = np.sum(hf['trial_nums_and_frame_nums'][1, :])
@@ -65,6 +103,29 @@ class subset_h5_generator:
                              num_to_sample=40,
                              min_seg_size=6,
                              start_and_stop_pole_times=None):
+        """
+
+        Parameters
+        ----------
+        seg_len_before_touch :
+             (Default value = 10)
+        seg_len_after_touch :
+             (Default value = 10)
+        min_y :
+             (Default value = .2)
+        max_y :
+             (Default value = .8)
+        num_to_sample :
+             (Default value = 40)
+        min_seg_size :
+             (Default value = 6)
+        start_and_stop_pole_times :
+             (Default value = None)
+
+        Returns
+        -------
+
+        """
         labels = self.labels
         if start_and_stop_pole_times is not None:
             pole_mask = self.keep_only_pole_up_times(start_pole=start_and_stop_pole_times[0],
@@ -123,6 +184,19 @@ class subset_h5_generator:
         # return all_inds, onset_list, offset_list, retrain_H5_info
 
     def get_img_stack(self, frame_inds, h5_img_key='images'):
+        """
+
+        Parameters
+        ----------
+        frame_inds :
+            
+        h5_img_key :
+             (Default value = 'images')
+
+        Returns
+        -------
+
+        """
 
         im_stack = None
         for k in frame_inds:
@@ -135,6 +209,21 @@ class subset_h5_generator:
         return im_stack
 
     def plot_all_onset_or_offset(self, up_or_down_list, fig_size=None, h5_img_file=None):
+        """
+
+        Parameters
+        ----------
+        up_or_down_list :
+            
+        fig_size :
+             (Default value = None)
+        h5_img_file :
+             (Default value = None)
+
+        Returns
+        -------
+
+        """
         if h5_img_file is None:
             h5_img_file = self.h5_img_file
 
