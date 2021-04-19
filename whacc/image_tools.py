@@ -129,10 +129,13 @@ class h5_iterative_creator():
         default True, this prevents the user form forgetting to close H5 which
         can lead to corruption.
 
-    Returns
-    -------
+    Example
+    _______
+    h5creator = h5_iterative_creator(new_H5_file)
+    h5creator.add_to_h5(img_stack1, labels_stack1)
+    h5creator.add_to_h5(img_stack2, labels_stack2)
+    h5creator.add_to_h5(img_stack3, labels_stack3)
 
-    
     """
 
     def __init__(self, h5_new_full_file_name,
@@ -226,6 +229,7 @@ class h5_iterative_creator():
     def close_h5(self):
         """ """
         self.open_or_close_h5('close')
+        print('H5 file was closed')
 
     def open_or_close_h5(self, mode_='r'):
         """

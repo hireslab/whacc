@@ -32,7 +32,6 @@ for i in PT:
 
 for i in PT:
     output_h5 = PT[i].track_all_and_save()
-
 #
 # #
 # import h5py
