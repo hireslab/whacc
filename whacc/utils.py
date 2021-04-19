@@ -5,13 +5,15 @@ import glob
 from natsort import os_sorted
 import scipy.io as spio
 import h5py
+import matplotlib.pyplot as plt
 
 
-# def h5_keys(h5_file):
-#     with h5py.File(h5_file, 'r') as hf:
-#         for k in dir(hf):
-#             if k[0] != '_':
-#                 print(k)
+def plot_pole_tracking_max_vals(h5_file):
+    with h5py.File(h5_file, 'r') as hf:
+        for i, k in enumerate(hf['max_val_stack'][:]):
+
+            plt.plot()
+
 def get_class_info(c, include_underscores=False):
     """look at the variables and methods of a class, prints an aligned list with their respective 'type'
 
