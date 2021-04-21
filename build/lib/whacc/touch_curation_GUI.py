@@ -13,6 +13,21 @@ from PIL import ImageTk, Image
 # label_key = 'labels'
 
 def touch_gui(H5_file_name, label_read_key, label_write_key=None):
+    """
+
+    Parameters
+    ----------
+    H5_file_name :
+        
+    label_read_key :
+        
+    label_write_key :
+         (Default value = None)
+
+    Returns
+    -------
+
+    """
     if label_write_key is None:
         label_write_key = label_read_key
     global im_ind
@@ -24,6 +39,17 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
 
     with h5py.File(H5_file_name, 'r+') as h5:
         def move(add_to):
+            """
+
+            Parameters
+            ----------
+            add_to :
+                
+
+            Returns
+            -------
+
+            """
             global im_ind
             global h5
             global img
@@ -64,19 +90,67 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
             text.text = str(ind2print) + ' of ' + str(len(LABELS))
 
         def index_out(a, start, stop):
+            """
+
+            Parameters
+            ----------
+            a :
+                
+            start :
+                
+            stop :
+                
+
+            Returns
+            -------
+
+            """
             if stop <= start:
                 stop += len(a)
             return np.arange(start, stop) % len(a)
 
         def move_right(event=None):
+            """
+
+            Parameters
+            ----------
+            event :
+                 (Default value = None)
+
+            Returns
+            -------
+
+            """
             global im_ind
             move(1)
 
         def move_left(event=None):
+            """
+
+            Parameters
+            ----------
+            event :
+                 (Default value = None)
+
+            Returns
+            -------
+
+            """
             global im_ind
             move(-1)
 
         def switch_label(event=None):
+            """
+
+            Parameters
+            ----------
+            event :
+                 (Default value = None)
+
+            Returns
+            -------
+
+            """
             global LABELS
             global im_ind
             if LABELS[im_ind] == -1:
@@ -88,24 +162,68 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
             move(0)
 
         def make_1(event=None):
+            """
+
+            Parameters
+            ----------
+            event :
+                 (Default value = None)
+
+            Returns
+            -------
+
+            """
             global LABELS
             global im_i
             LABELS[im_ind] = 1
             move(0)
 
         def make_0(event=None):
+            """
+
+            Parameters
+            ----------
+            event :
+                 (Default value = None)
+
+            Returns
+            -------
+
+            """
             global LABELS
             global im_i
             LABELS[im_ind] = 0
             move(0)
 
         def make_neg1(event=None):
+            """
+
+            Parameters
+            ----------
+            event :
+                 (Default value = None)
+
+            Returns
+            -------
+
+            """
             global LABELS
             global im_i
             LABELS[im_ind] = -1
             move(0)
 
         def save_foo(event=None):
+            """
+
+            Parameters
+            ----------
+            event :
+                 (Default value = None)
+
+            Returns
+            -------
+
+            """
             global LABELS
 
             try:
