@@ -9,6 +9,69 @@ import time
 import os
 
 
+def clone_h5_basic_info(H5_list, fold_name = None, file_end ='_QUICK_SAVE.h5'):
+    """
+    copies all the info form H5 into another H5 file NOT INCLUDING the labels or images. so it have all the file info,
+    like names and pole locations and polate match max value stack. anything with 'images' , 'MODEL__' or 'labels' is
+    not copied over to the new file.
+    Parameters
+    ----------
+    H5_list : list
+        list of H5 files to clone
+    fold_name : str
+        default None, where to place the cloned H5 files. if left blank it will place in the same folder as the original file
+    file_end : str
+        default '_QUICK_SAVE.h5', how to change the name of the H5 file to be cloned to differentiate it from the original
+    Returns
+    -------
+    all_new_h5s: list
+        list of new H5 full file names
+    """
+    if fold_name is not None:
+        try:
+            os.mkdir(fold_name)
+        except:
+            pass
+        all_new_h5s = []
+
+    for h5 in H5_list:
+        if fold_name is not None:
+            new_fn = fold_name + os.path.sep + os.path.basename(h5)[:-3] + file_end
+        else: #
+            new_fn = os.path.dirname(h5) + os.path.sep + os.path.basename(h5)[:-3] + file_end
+        all_new_h5s.append(new_fn)
+        try:
+            os.remove(new_fn)
+        except:
+            pass
+        with h5py.File(new_fn, 'w') as f1:
+            with h5py.File(h5, 'r') as f2:
+                for i, k in enumerate(f2.keys()):
+                    if 'images' != k and 'MODEL__' not in k and 'labels' not in k:
+                        f1.create_dataset(k, data=f2[k][:])
+                f2.close()
+            f1.close()
+        return all_new_h5s
+
+
+def del_h5_with_term(h5_list, str_2_cmp):
+    """
+    Parameters
+    ----------
+    h5_list : list
+        list of H5 strings (full path)
+    str_2_cmp : str
+        will delete keys with this in their title ... e.g. '__RETRAIN'
+    """
+    for k2 in h5_list:
+        with h5py.File(k2, 'a') as h5_source:
+            for k in h5_source.keys():
+                if str_2_cmp in k:
+                    print('del--> ' + k)
+                    del h5_source[k]
+            print('_______')
+
+
 def split_h5(h5_to_split, split_percentages, temp_base_name):
     """Randomly splits images from H5 file into however many other H5 files for test or validation etc.
 
@@ -17,9 +80,9 @@ def split_h5(h5_to_split, split_percentages, temp_base_name):
     h5_to_split : string
         full file name to the H5 file to be split
     split_percentages : list
-        list of numbers, can be ints [20, 1, 1] and or floats [.8, .2], it simply takes the sume and creates a percentage
+        list of numbers, can be ints [20, 1, 1] and or floats [.8, .2], it simply takes the sum and creates a percentage
     temp_base_name : str
-        full fapth to new h5 file e.g "'/Users/phil/tempH5_" and the program will add the number and the ".h5"
+        full path to new h5 file e.g "'/Users/phil/tempH5_" and the program will add the number and the ".h5"
         in this case tempH5_0.h5, tempH5_1.h5, tempH5_2.h5 etc.
 
     Returns
@@ -66,10 +129,13 @@ class h5_iterative_creator():
         default True, this prevents the user form forgetting to close H5 which
         can lead to corruption.
 
-    Returns
-    -------
+    Example
+    _______
+    h5creator = h5_iterative_creator(new_H5_file)
+    h5creator.add_to_h5(img_stack1, labels_stack1)
+    h5creator.add_to_h5(img_stack2, labels_stack2)
+    h5creator.add_to_h5(img_stack3, labels_stack3)
 
-    
     """
 
     def __init__(self, h5_new_full_file_name,
@@ -94,18 +160,12 @@ class h5_iterative_creator():
 
     def add_to_h5(self, images, labels):
         """
-
         Parameters
         ----------
-        images :
-            param labels:
-        labels :
-            
-
-        Returns
-        -------
-
-        
+        images : numpy tensor
+            chunk of images
+        labels : numpy array
+            array oof labels
         """
         if self.close_it:
             self.open_or_close_h5('r+')
@@ -118,17 +178,11 @@ class h5_iterative_creator():
 
     def _create_h5(self, images, labels):
         """
-
         Parameters
         ----------
         images :
-            param labels:
+
         labels :
-            
-
-        Returns
-        -------
-
         
         """
         self.hf_file.create_dataset("multiplier", [1], h5py.h5t.STD_I32LE, data=images.shape[0])
@@ -152,7 +206,7 @@ class h5_iterative_creator():
         Parameters
         ----------
         images :
-            param labels:
+
         labels :
             
 
@@ -175,6 +229,7 @@ class h5_iterative_creator():
     def close_h5(self):
         """ """
         self.open_or_close_h5('close')
+        print('H5 file was closed')
 
     def open_or_close_h5(self, mode_='r'):
         """
@@ -308,8 +363,10 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
     H5_file_list : list: list
         list of string(s) of H5 file full paths
     model_2_load : param append_model_and_labels_to_name_string: if True label_save_name =  'MODEL__' + label_save_name + '__labels',
-    it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find
-    those labels for later processing.
+        
+    it is a simple way to keep track of labels form many models in a single H5 file. also make sit easier to find :
+        
+    those labels for later processing. :
         either full path to model folder ending with ".ckpt" OR the loaded model itself. if the later,
         the user MUST set "model_2_load_is_model" is True and "label_save_name" must be explicitly defined (when using model
         path we use the model name to name the labels).
@@ -333,9 +390,8 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
 
     Returns
     -------
-    numpy array
-        labels_2_save - predictions ranging from 0 to 1 for not-touch and touch respectively
 
+    
     """
     for i, H5_file in enumerate(H5_file_list):
         # save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename = 1) # only matters if file is corrupt otherwise doesnt touch it

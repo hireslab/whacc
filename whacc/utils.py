@@ -8,11 +8,33 @@ import h5py
 import matplotlib.pyplot as plt
 
 
+def lister_it(in_list, keep_strings = None, remove_string = None):
+
+    if keep_strings is None:
+        new_list = in_list
+    else:
+        new_list = []
+        for L in in_list:
+            for k in keep_strings:
+                if k in L:
+                    new_list.append(L)
+
+    if remove_string is None:
+        new_list_2 = new_list
+    else:
+        new_list_2 = []
+        for L in new_list:
+            for k in remove_string:
+                if k not in L:
+                    new_list_2.append(k)
+    return new_list_2
+
+
 def plot_pole_tracking_max_vals(h5_file):
     with h5py.File(h5_file, 'r') as hf:
         for i, k in enumerate(hf['max_val_stack'][:]):
-
             plt.plot()
+
 
 def get_class_info(c, include_underscores=False):
     """look at the variables and methods of a class, prints an aligned list with their respective 'type'

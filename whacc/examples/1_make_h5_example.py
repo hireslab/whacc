@@ -31,7 +31,9 @@ for i in PT:
     plt.imshow(PT_tmp.template_image)
 
 for i in PT:
+    PT[i].use_narrow_search_to_speed_up = False
     output_h5 = PT[i].track_all_and_save()
+
 #
 # #
 # import h5py
