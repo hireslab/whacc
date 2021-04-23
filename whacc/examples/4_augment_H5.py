@@ -48,6 +48,4 @@ with h5py.File(h5_subset_file, 'r') as hf:
         h5creator.add_to_h5(aug_img_stack, labels_stack)
 
 
-h5creator = h5_iterative_creator(new_H5_file,
-                                 overwrite_if_file_exists=True,
-                                 close_and_open_on_each_iteration=True)
+

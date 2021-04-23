@@ -227,8 +227,7 @@ class PoleTracking():
         if save_directory is None:
             save_directory = self.video_directory
         save_directory = save_directory + os.path.sep
-        # save data in H5 with name similar to video
-        file_name = self.save_base_name + '.h5'
+
         """
         This is the major output function of the PoleTracking class. This functions will 
         track all video files within the directory and save an H5 file with the meta information:
@@ -246,6 +245,8 @@ class PoleTracking():
         # to print out the file lists before you run everyhting to check.
         if 'ascii_video_files' not in [k for k in dir(self) if '_' not in k[0]]:
             self.get_trial_and_file_names()
+        # save data in H5 with name similar to video
+        file_name = self.save_base_name + '.h5'
         # create image stack
         final_stack = []
         len_all = 0
