@@ -8,7 +8,23 @@ import h5py
 import matplotlib.pyplot as plt
 
 
-def lister_it(in_list, keep_strings = None, remove_string = None):
+def lister_it(in_list, keep_strings=None, remove_string=None):
+    """
+
+    Parameters
+    ----------
+    in_list : list
+    keep_strings : list
+    remove_string : list
+
+    Returns
+    -------
+
+    """
+    if isinstance(keep_strings, str):
+        keep_strings = [keep_strings]
+    if isinstance(remove_string, str):
+        remove_string = [remove_string]
 
     if keep_strings is None:
         new_list = in_list
