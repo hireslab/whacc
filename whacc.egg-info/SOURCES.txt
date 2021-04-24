@@ -21,6 +21,8 @@ setup.py
 ./whacc/examples/2_predict_touches_example.py
 ./whacc/examples/3_make_subset_H5_example.py
 ./whacc/examples/4_augment_H5.py
+./whacc/examples/5_split_data_for_retrain_example.py
+./whacc/examples/6_retrain_example.py
 ./whacc/examples/__init__.py
 ./whacc/examples/add_pole_times.py
 ./whacc/examples/gui_example.py
@@ -44,6 +46,8 @@ whacc/examples/1_make_h5_example.py
 whacc/examples/2_predict_touches_example.py
 whacc/examples/3_make_subset_H5_example.py
 whacc/examples/4_augment_H5.py
+whacc/examples/5_split_data_for_retrain_example.py
+whacc/examples/6_retrain_example.py
 whacc/examples/__init__.py
 whacc/examples/add_pole_times.py
 whacc/examples/gui_example.py

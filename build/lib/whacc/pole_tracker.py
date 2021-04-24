@@ -43,7 +43,7 @@ from natsort import os_sorted
 
 class PoleTracking():
 
-    def __init__(self, video_directory, template_png_full_name=None, use_narrow_search_to_speed_up=True):
+    def __init__(self, video_directory, template_png_full_name=None, use_narrow_search_to_speed_up=False):
         """
 
         Parameters
