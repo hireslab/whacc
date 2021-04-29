@@ -49,9 +49,51 @@ with h5py.File(h5_name, 'r') as hf:
 
 
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
+import os
+from whacc import utils
+import pyment
+a = utils.get_files('/Users/phil/Dropbox/HIRES_LAB/GitHub/whacc/whacc/', '*.py')
+for k in a:
+    k
+    os.system("pyment -w -o numpydoc " + k)
+
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+import matplotlib.pyplot as plt
+import h5py
+import numpy as np
+h5_file = '/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AH0667x170317_JON/AH0667x170317.h5'
+h5_file = '/Users/phil/Downloads/AH1157X22012021xS408 (1).h5'
+h5_file = "/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AAA_test_tracking/AH1157X22012021xS408.h5"
+
+with h5py.File(h5_file, 'r') as hf:
+    print(hf.keys())
+    last_range = 0
+    for i, k in enumerate(hf['max_val_stack'][:]):
+        y = k+last_range-min(k)
+        plt.plot(y)
+        plt.annotate(str(i), (-100,y[0]))
+        # plt.plot(k, np.zeros_like(k)+last_range)
+        last_range += np.ptp(k)*1.2
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
+import matplotlib.pyplot as plt
+import h5py
+import numpy as np
+h5_file = "/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AAA_test_tracking/AH1157X22012021xS408.h5"
+with h5py.File(h5_file, 'r') as hf:
+    for i, k in enumerate(hf['images'][:]):
+        if i%30 == 0:
+            plt.imshow(k)
+            a = plt.text(0, 0, str(i), bbox=dict(fill=True, edgecolor='white', linewidth=2))
+            plt.pause(.1)
+    plt.show()
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
+from whacc import utils
+
+h5_file_list = utils.get_h5s('/Users/phil/Dropbox/Autocurator/testing_data/MP4s/')
+
+h5_file_list2 = utils.lister_it(h5_file_list, remove_string=['subset', 'temp', 'aug'])
+print(h5_file_list2)
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
 

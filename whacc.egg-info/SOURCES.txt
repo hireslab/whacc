@@ -29,6 +29,7 @@ setup.py
 ./whacc/examples/h5_tester.py
 ./whacc/examples/read_frame_test.py
 ./whacc/examples/scratch.py
+./whacc/examples/scratch_2.py
 ./whacc/examples/track_moving_test.py
 whacc/__init__.py
 whacc/image_tools.py
@@ -54,4 +55,5 @@ whacc/examples/gui_example.py
 whacc/examples/h5_tester.py
 whacc/examples/read_frame_test.py
 whacc/examples/scratch.py
+whacc/examples/scratch_2.py
 whacc/examples/track_moving_test.py

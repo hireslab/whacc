@@ -94,7 +94,7 @@ def del_h5_with_term(h5_list, str_2_cmp):
 
 
 def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True,
-             disable_TQDM=False):
+             disable_TQDM=False, skip_if_label_is_neg_1 = True):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -130,6 +130,8 @@ def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=100
         with h5py.File(h5_to_split, 'r') as h:
             L = len(h['labels'][:])
             mixed_inds = np.random.choice(L, L, replace=False)
+            if skip_if_label_is_neg_1: # remove -1s
+                mixed_inds = mixed_inds[mixed_inds!=-1]
             random_frame_inds = np.split(mixed_inds, np.ceil(L * np.cumsum(split_percentages[:-1])).astype('int'))
             for i, k in enumerate(split_percentages):
                 if iii == 0:  # create the H5 creators
@@ -143,7 +145,7 @@ def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=100
                 ims = []
                 labels = []
                 # print('starting ' + str(iii*i + 1) + ' of ' + str(len(split_percentages)*len(h5_to_split_list)))
-                for ii in tqdm(random_frame_inds[i], disable=disable_TQDM, total=total_frames, initial=cnt1):
+                for ii in tqdm(sorted(random_frame_inds[i]), disable=disable_TQDM, total=total_frames, initial=cnt1):
                     cnt1 += 1
                     ims.append(h['images'][ii])
                     labels.append(h['labels'][ii])
@@ -432,7 +434,7 @@ def predict_multiple_H5_files(H5_file_list, model_2_load, append_model_and_label
     disable_TQDM : bool
         if True, turns off loading progress bar. (Default value = False)
     save_labels_to_this_h5_file_instead : string
-        full path to H5 file to insert labels into instead of the H5 used as teh image source (Default value = None)
+        full path to H5 file to insert labels into instead of the H5 used as the image source (Default value = None)
 
     Returns
     -------

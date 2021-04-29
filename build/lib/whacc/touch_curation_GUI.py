@@ -225,7 +225,7 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
 
             """
             global LABELS
-
+            LABELS = (LABELS>.5)*1
             try:
                 del h5[label_write_key]
                 # time.sleep(10)  # give time to process the deleted file... maybe???
