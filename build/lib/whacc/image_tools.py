@@ -93,7 +93,8 @@ def del_h5_with_term(h5_list, str_2_cmp):
             print('_______')
 
 
-def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True, disable_TQDM = False):
+def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True,
+             disable_TQDM=False):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -590,20 +591,38 @@ class ImageBatchGenerator(keras.utils.Sequence):
         h = self.H5_file_list
         i = self.file_inds_for_H5_extraction
         H5_file = h[np.int(i[num_2_extract])]
-        H5 = h5py.File(H5_file, 'r')
-        #  list(H5.keys())
+        with h5py.File(H5_file, 'r') as H5:
+            # H5 = h5py.File(H5_file, 'r')
 
-        images = H5['images']
-        num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
-        raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
-        rgb_tensor = self.image_transform(raw_X)
+            images = H5['images']
+            num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+            raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+            rgb_tensor = self.image_transform(raw_X)
 
-        # if self.to_fit:
-        #   labels_tmp = H5['labels']
-        #   raw_Y = labels_tmp[b*num_2_extract_mod:b*(num_2_extract_mod+1)]
-        #   return rgb_tensor, raw_Y
-        # else:
-        return rgb_tensor
+            labels_tmp = H5['labels']
+            raw_Y = labels_tmp[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+            H5.close()
+        return rgb_tensor, raw_Y
+
+    # def __getitem__(self, num_2_extract):
+    #     b = self.batch_size
+    #     h = self.H5_file_list
+    #     i = self.file_inds_for_H5_extraction
+    #     H5_file = h[np.int(i[num_2_extract])]
+    #     H5 = h5py.File(H5_file, 'r')
+    #     #  list(H5.keys())
+    #
+    #     images = H5['images']
+    #     num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+    #     raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+    #     rgb_tensor = self.image_transform(raw_X)
+    #
+    #     # if self.to_fit:
+    #     #   labels_tmp = H5['labels']
+    #     #   raw_Y = labels_tmp[b*num_2_extract_mod:b*(num_2_extract_mod+1)]
+    #     #   return rgb_tensor, raw_Y
+    #     # else:
+    #     return rgb_tensor
 
     def getXandY(self, num_2_extract):
         """

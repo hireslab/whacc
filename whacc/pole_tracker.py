@@ -589,3 +589,7 @@ class PoleTracking():
                 change_trig = False
 
         self.template_image = template_image[:, :, 0]
+
+
+
+

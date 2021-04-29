@@ -60,7 +60,7 @@ def get_class_info(c, include_underscores=False):
     c : class
         calss variable
     include_underscores : bool
-        display teh secret methods/variables starting with '_' (Default value = False)
+        display the secret methods/variables starting with '_' (Default value = False)
 
     Returns
     -------
