@@ -1,12 +1,12 @@
 from whacc import utils
 from whacc import image_tools
 
-H5_list_to_train = utils.get_h5s('/Users/phil/Dropbox/Autocurator/data/samsons_subsets/test/')
+H5_list_to_train = utils.get_h5s('/Users/phil/Dropbox/Autocurator/data/samsons_subsets/')
 H5_list_to_train = utils.lister_it(H5_list_to_train,
-                                   keep_strings=['subset'])  # get only the H5 files with the word 'subset'
+                                   keep_strings=['subset'], remove_string=['OLD_pole_down_included'])  # get only the H5 files with the word 'subset'
 print(H5_list_to_train)
 bd = '/Users/phil/Dropbox/Autocurator/data/samsons_subsets/test/'  # base directory to put files
-split_h5_files = image_tools.split_h5(H5_list_to_train, [1], temp_base_name=[bd + 'test_set'],
+split_h5_files = image_tools.split_h5(H5_list_to_train, [8, 3], temp_base_name=[bd + 'training_set', 'validation_set'],
                                       add_numbers_to_name=False)
 
 

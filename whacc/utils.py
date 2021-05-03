@@ -42,7 +42,7 @@ def lister_it(in_list, keep_strings=None, remove_string=None):
         for L in new_list:
             for k in remove_string:
                 if k not in L:
-                    new_list_2.append(k)
+                    new_list_2.append(L)
     return new_list_2
 
 
