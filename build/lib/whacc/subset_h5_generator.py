@@ -175,8 +175,8 @@ class subset_h5_generator:
                            'max_y': max_y,
                            'num_to_sample': num_to_sample,
                            'num_high_prob_past_max_y': seg_len_after_touch}
-        inds_2_add = numpy.linspace(0, 50 - 1, ).astype(int)
-        all_inds = numpy.concatenate((numpy.float64(inds_2_add), all_inds))
+        # inds_2_add = numpy.linspace(0, 50 - 1, ).astype(int)
+        # all_inds = numpy.concatenate((numpy.float64(inds_2_add), all_inds))
         self.all_inds = all_inds
         self.onset_list = onset_list
         self.offset_list = offset_list
