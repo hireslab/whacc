@@ -488,7 +488,7 @@ class PoleTracking():
         """
         self.template_image = np.asarray(Image.open(img_to_load))
 
-    def cut_out_pole_template(self, video_directory, crop_size=[61, 61], frame_num=2000, file_ind=None):
+    def cut_out_pole_template(self, crop_size=[61, 61], frame_num=2000, file_ind=None):
         """
 
         Parameters
