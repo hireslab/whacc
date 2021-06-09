@@ -94,7 +94,7 @@ def del_h5_with_term(h5_list, str_2_cmp):
 
 
 def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True,
-             disable_TQDM=False, skip_if_label_is_neg_1 = True):
+             disable_TQDM=False, skip_if_label_is_neg_1=True):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -130,8 +130,8 @@ def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=100
         with h5py.File(h5_to_split, 'r') as h:
             L = len(h['labels'][:])
             mixed_inds = np.random.choice(L, L, replace=False)
-            if skip_if_label_is_neg_1: # remove -1s
-                mixed_inds = mixed_inds[mixed_inds!=-1]
+            if skip_if_label_is_neg_1:  # remove -1s
+                mixed_inds = mixed_inds[mixed_inds != -1]
             random_frame_inds = np.split(mixed_inds, np.ceil(L * np.cumsum(split_percentages[:-1])).astype('int'))
             for i, k in enumerate(split_percentages):
                 if iii == 0:  # create the H5 creators
@@ -173,7 +173,7 @@ class h5_iterative_creator():
     max_img_width : int
         default 61, only the max size, can be larger in case you are going to have larger images
     close_and_open_on_each_iteration : bool
-        default True, this prevents the user form forgetting to close H5 which
+        default True, this prevents the user from forgetting to close H5 which
         can lead to corruption.
 
     Example
@@ -189,7 +189,8 @@ class h5_iterative_creator():
                  overwrite_if_file_exists=False,
                  max_img_height=61,
                  max_img_width=61,
-                 close_and_open_on_each_iteration=True):
+                 close_and_open_on_each_iteration=True,
+                 color_channel=True):
 
         if not close_and_open_on_each_iteration:
             print('**remember to CLOSE the H5 file when you are done!!!**')
@@ -197,7 +198,7 @@ class h5_iterative_creator():
             os.remove(h5_new_full_file_name)
         self.h5_full_file_name = h5_new_full_file_name
         self.hf_file = h5py.File(h5_new_full_file_name, "w")
-
+        self.color_channel = color_channel
         self.max_img_height = max_img_height
         self.max_img_width = max_img_width
         self._went_through_create_h5 = False
@@ -234,12 +235,20 @@ class h5_iterative_creator():
         """
         # if set_multiplier:
         self.hf_file.create_dataset("multiplier", [1], h5py.h5t.STD_I32LE, data=images.shape[0])
-        self.hf_file.create_dataset('images',
-                                    np.shape(images),
-                                    h5py.h5t.STD_U8BE,
-                                    maxshape=(None, self.max_img_height, self.max_img_width, 3),
-                                    chunks=True,
-                                    data=images)
+        if self.color_channel:
+            self.hf_file.create_dataset('images',
+                                        np.shape(images),
+                                        h5py.h5t.STD_U8BE,
+                                        maxshape=(None, self.max_img_height, self.max_img_width, 3),
+                                        chunks=True,
+                                        data=images)
+        else:
+            self.hf_file.create_dataset('images',
+                                        np.shape(images),
+                                        h5py.h5t.STD_U8BE,
+                                        maxshape=(None, self.max_img_height, self.max_img_width),
+                                        chunks=True,
+                                        data=images)
         self.hf_file.create_dataset('labels',
                                     np.shape(labels),
                                     h5py.h5t.STD_I32LE,
@@ -724,3 +733,32 @@ class ImageBatchGenerator(keras.utils.Sequence):
             plt.xlabel('1')
         plt.suptitle('sample images from batch  ' + str(batch_num))
         plt.show()
+
+
+def image_transform_(IMG_SIZE, raw_X):
+    """
+    input num_of_images x H x W, image input must be grayscale
+    MobileNetV2 requires certain image dimensions
+    We use N x 61 x 61 formated images
+    self.IMG_SIZE is a single number to change the images into, images must be square
+
+    Parameters
+    ----------
+    raw_X :
+
+
+    Returns
+    -------
+
+
+    """
+
+    if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
+        rgb_batch = copy.deepcopy(raw_X)
+    else:
+        rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+    rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+    rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
+    rgb_tensor = tf.image.resize(rgb_tensor, (IMG_SIZE, IMG_SIZE))  # resizing
+    IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
+    return rgb_tensor

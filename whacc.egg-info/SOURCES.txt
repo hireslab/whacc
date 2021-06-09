@@ -6,6 +6,7 @@ setup.py
 ./requirements.txt
 ./whacc/.DS_Store
 ./whacc/__init__.py
+./whacc/analysis.py
 ./whacc/image_tools.py
 ./whacc/pole_tracker.py
 ./whacc/subset_h5_generator.py
@@ -34,6 +35,7 @@ setup.py
 ./whacc/examples/scratch_2.py
 ./whacc/examples/track_moving_test.py
 whacc/__init__.py
+whacc/analysis.py
 whacc/image_tools.py
 whacc/pole_tracker.py
 whacc/subset_h5_generator.py

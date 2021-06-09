@@ -6,7 +6,8 @@ from natsort import os_sorted
 import scipy.io as spio
 import h5py
 import matplotlib.pyplot as plt
-
+import pandas as pd
+from tqdm import tqdm
 
 def lister_it(in_list, keep_strings=None, remove_string=None):
     """
@@ -140,7 +141,7 @@ def get_h5s(base_dir):
 
     """
     H5_file_list = []
-    for path in Path(base_dir + '/').rglob('*.h5'):
+    for path in Path(base_dir + os.path.sep).rglob('*.h5'):
         H5_file_list.append(str(path.parent) + os.path.sep + path.name)
     H5_file_list.sort()
     print_list_with_inds(H5_file_list)
@@ -338,3 +339,160 @@ def _todict(matobj):
         else:
             dict[strg] = elem
     return dict
+
+
+def get_inds_of_inds(a, return_unique_list=False):
+    a2 = []
+    for k in a:
+        a2.append(list(np.where([k == kk for kk in a])[0]))
+    try:
+        inds_of_inds = list(np.unique(a2, axis=0))
+        for i, k in enumerate(inds_of_inds):
+            inds_of_inds[i] = list(k)
+    except:
+        inds_of_inds = list(np.unique(a2))
+    if return_unique_list:
+        return inds_of_inds, pd.unique(a)
+    else:
+        return inds_of_inds
+
+
+def inds_around_inds(x, N):
+    """
+
+    Parameters
+    ----------
+    x : array
+    N : window size
+
+    Returns
+    -------
+    returns indices of arrays where array >0 with borders of ((N - 1) / 2), so x = [0, 0, 0, 1, 0, 0, 0] and N = 3
+    returns [2, 3, 4]
+    """
+    assert N / 2 != round(N / 2), 'N must be an odd number so that there are equal number of points on each side'
+    cumsum = np.cumsum(np.insert(x, 0, 0))
+    a = (cumsum[N:] - cumsum[:-N]) / float(N)
+    a = np.where(a > 0)[0] + ((N - 1) / 2)
+    return a.astype('int')
+
+
+def loop_segments(frame_num_array):
+    """
+
+    Parameters
+    ----------
+    frame_num_array :
+    num of frames in each trial in a list
+    Returns
+    -------
+    2 lists with the proper index for pulling those trials out one by one in a for loop
+    Examples
+    ________
+    a3 = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    frame_num_array = [4, 5]
+    for i1, i2 in loop_segments(frame_num_array):
+        print(a3[i1:i2])
+
+    >>>[0, 1, 2, 3]
+    >>>[4, 5, 6, 7, 8]
+    """
+
+    frame_num_array = [0] + frame_num_array
+    frame_num_array = np.cumsum(frame_num_array)
+    return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
+
+
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_ below programs users will likely not use_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+
+def _get_human_contacts_(all_h5s):
+    """
+    just used to get array of contacts, not meant to be used long term
+    Parameters
+    ----------
+    all_h5s :
+
+    Returns
+    -------
+
+    """
+    h_cont = []
+    a = [k.split(os.path.sep)[-1].split('_', maxsplit=1)[-1] for k in all_h5s]
+    inds_of_inds, list_of_uniq_files = get_inds_of_inds(a, True)
+    for i, k in enumerate(inds_of_inds):
+        tmp1 = np.array([])
+        for ii, kk in enumerate(k):
+            with h5py.File(all_h5s[kk], 'r') as h:
+                tmp1 = np.vstack([tmp1, h['labels'][:]]) if tmp1.size else h['labels'][:]
+        h_cont.append(tmp1)
+    return h_cont, list_of_uniq_files
+
+
+def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=100):
+    """
+
+    Parameters
+    ----------
+    h5c : h5 creator class
+    all_h5s_imgs : list of h5s with images
+    h_cont : a tensor of human contacts people by frames trial H5 files (down right deep)
+    borders : for touch 0000011100000 it will find teh 111 in it and get all the bordering areas around it. points are
+    unique so 0000011100000 and 0000010100000 will return the same index
+    max_pack_val : speeds up the process by transferring data in chunks of this max size instead of building them all up in memory
+    it's a max instead of a set value because it can be if the len(IMAGES)%max_pack_val is equal to 0 or 1 it will crash, so I calculate it
+    so that it wont crash.
+
+    Returns
+    -------
+    saves an H5 file
+    Examples
+    ________
+    all_h5s = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/finished_contacts/')
+    all_h5s_imgs = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/H5_data/')
+    h_cont = utils._get_human_contacts_(all_h5s)
+    h5c = image_tools.h5_iterative_creator('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/test_____.h5',
+                                           overwrite_if_file_exists = True,
+                                           color_channel = False)
+    utils.create_master_dataset(h5c, all_h5s_imgs, h_cont, borders = 80, max_pack_val = 100)
+    """
+    frame_nums = []
+    for k, k2 in zip(all_h5s_imgs, h_cont):
+        with h5py.File(k, 'r') as h:
+            max_human_label = np.max(k2, axis=0)
+            mean_human_label = np.mean(k2, axis=0)
+            mean_human_label = (mean_human_label > 0.5) * 1
+            b = inds_around_inds(max_human_label, borders * 2 + 1)
+            tmp1, _ = group_consecutives(b)
+            for tmp2 in tmp1:
+                frame_nums.append(len(tmp2))
+
+            pack_every_x = [k for k in np.flip(range(3, max_pack_val + 1)) if len(b) % k >= 2]
+            assert pack_every_x, ['chosen H5 file has value of ', len(b), ' and max_pack_val is ', max_pack_val,
+                                  ' increase max_pack_val to prevent this error']
+            pack_every_x = np.max(pack_every_x)
+
+            np.max([k for k in np.flip(range(3, 100)) if len(b) % k >= 2])
+            new_imgs = np.array([])
+            new_labels = np.array([])
+            cntr = 0
+            for k3 in tqdm(b):
+                cntr += 1
+                if new_imgs.size:
+                    new_imgs = np.concatenate((new_imgs, h['images'][k3][None, :, :, 0]), axis=0)
+                    new_labels = np.append(new_labels, max_human_label[k3])
+                else:
+                    new_imgs = h['images'][k3][None, :, :, 0]
+                    new_labels = mean_human_label[k3]
+                if cntr >= pack_every_x:  # this makes it ~ 100X faster than stacking up in memory
+                    h5c.add_to_h5(new_imgs, new_labels)
+                    new_imgs = np.array([])
+                    new_labels = np.array([])
+                    cntr = 0
+            h5c.add_to_h5(new_imgs, new_labels)
+
+    with h5py.File(h5c.h5_full_file_name, 'r+') as h:
+        h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
