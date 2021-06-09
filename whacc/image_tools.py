@@ -94,7 +94,7 @@ def del_h5_with_term(h5_list, str_2_cmp):
 
 
 def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True,
-             disable_TQDM=False, skip_if_label_is_neg_1 = True):
+             disable_TQDM=False, skip_if_label_is_neg_1=True):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -130,8 +130,8 @@ def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=100
         with h5py.File(h5_to_split, 'r') as h:
             L = len(h['labels'][:])
             mixed_inds = np.random.choice(L, L, replace=False)
-            if skip_if_label_is_neg_1: # remove -1s
-                mixed_inds = mixed_inds[mixed_inds!=-1]
+            if skip_if_label_is_neg_1:  # remove -1s
+                mixed_inds = mixed_inds[mixed_inds != -1]
             random_frame_inds = np.split(mixed_inds, np.ceil(L * np.cumsum(split_percentages[:-1])).astype('int'))
             for i, k in enumerate(split_percentages):
                 if iii == 0:  # create the H5 creators
@@ -190,7 +190,7 @@ class h5_iterative_creator():
                  max_img_height=61,
                  max_img_width=61,
                  close_and_open_on_each_iteration=True,
-                 color_channel = True):
+                 color_channel=True):
 
         if not close_and_open_on_each_iteration:
             print('**remember to CLOSE the H5 file when you are done!!!**')
@@ -354,7 +354,7 @@ def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
     return all_augment, out_labels
 
 
-def img_unstacker(img_array, num_frames_wide=8):
+def img_unstacker(img_array, num_frames_wide=8, color_channel = True):
     """unstacks image stack and combines them into one large image for easy display. reads left to right and then top to bottom.
 
     Parameters
@@ -733,29 +733,32 @@ class ImageBatchGenerator(keras.utils.Sequence):
             plt.xlabel('1')
         plt.suptitle('sample images from batch  ' + str(batch_num))
         plt.show()
+
+
 def image_transform_(IMG_SIZE, raw_X):
-        """input num_of_images x H x W, image input must be grayscale
-        MobileNetV2 requires certain image dimensions
-        We use N x 61 x 61 formated images
-        self.IMG_SIZE is a single number to change the images into, images must be square
+    """
+    input num_of_images x H x W, image input must be grayscale
+    MobileNetV2 requires certain image dimensions
+    We use N x 61 x 61 formated images
+    self.IMG_SIZE is a single number to change the images into, images must be square
 
-        Parameters
-        ----------
-        raw_X :
-
-
-        Returns
-        -------
+    Parameters
+    ----------
+    raw_X :
 
 
-        """
+    Returns
+    -------
 
-        if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
-            rgb_batch = copy.deepcopy(raw_X)
-        else:
-            rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
-        rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
-        rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
-        rgb_tensor = tf.image.resize(rgb_tensor, (IMG_SIZE, IMG_SIZE))  # resizing
-        IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
-        return rgb_tensor
+
+    """
+
+    if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
+        rgb_batch = copy.deepcopy(raw_X)
+    else:
+        rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+    rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+    rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
+    rgb_tensor = tf.image.resize(rgb_tensor, (IMG_SIZE, IMG_SIZE))  # resizing
+    IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
+    return rgb_tensor
