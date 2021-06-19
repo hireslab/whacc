@@ -3,6 +3,7 @@ from whacc import utils
 from whacc.subset_h5_generator import subset_h5_generator
 H5_list = utils.get_h5s('/Users/phil/Dropbox/Autocurator/testing_data/MP4s/')
 
+# tmp1 = '/Users/phil/Downloads/AH1120_200322__.h5'
 sg = subset_h5_generator(H5_list[0], 'labels')
 
 sg.get_example_segments(seg_len_before_touch=10,

@@ -17,3 +17,5 @@ scikit-learn~=0.24.1
 setuptools~=56.0.0
 
 pandas~=1.2.4
+
+ipython~=7.24.1

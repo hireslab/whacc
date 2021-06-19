@@ -3,7 +3,7 @@ from whacc import image_tools
 
 m_list = utils.get_model_list('/Users/phil/Dropbox/Colab data/model_iterations')
 model_2_load = m_list[12]
-model_2_load = m_list[6]
+# model_2_load = m_list[6]
 
 
 H5_list = utils.get_h5s('/Users/phil/Dropbox/Autocurator/testing_data/MP4s/')
