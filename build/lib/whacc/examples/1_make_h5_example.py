@@ -5,6 +5,8 @@ import os
 import matplotlib.pyplot as plt
 
 mp4_path = "/Users/phil/Dropbox/Autocurator/testing_data/MP4s"
+mp4_path = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/"
+# mp4_path = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/delete_after_oct_2021/"
 search_term = '*.mp4'
 ##
 folders_with_MP4s = whacc.utils.recursive_dir_finder(mp4_path, search_term)
@@ -18,7 +20,7 @@ for i, video_directory in enumerate(folders_with_MP4s):
         PT[i] = PoleTracking(video_directory=video_directory, template_png_full_name=template_img_full_name[0])
     else:
         PT[i] = PoleTracking(video_directory=video_directory)  # create the class
-        PT[i].cut_out_pole_template(video_directory, crop_size=[61, 61], frame_num=1200,
+        PT[i].cut_out_pole_template(crop_size=[61, 61], frame_num=1200,
                                     file_ind=2)  # cut out template image## 270 , 120# 270, 235# 187 , 249# 168 , 276
         PT[i].save_template_img(cust_save_dir=PT[i].video_directory)  # save the template image
 
@@ -33,6 +35,7 @@ for i in PT:
 for i in PT:
     PT[i].use_narrow_search_to_speed_up = False
     output_h5 = PT[i].track_all_and_save()
+
 
 #
 # #

@@ -237,8 +237,8 @@ class PoleTracking():
         - trial_nums_and_frame_nums: 2 dimensional vector. Row 1 = trial number and Row 2 = frame number in that trial
         - in_range: this is pre-allocation for the pole in range tracker
         """
-        loc_stack_all = []
-        max_val_stack_all = []
+        loc_stack_all = np.asarray([])
+        max_val_stack_all = np.asarray([])
         # get the video names and trial numbers -- this is a sperate function
         # so that you can run it before you process the videos to see if the
         # naming and numbers are correct. can run PT.get_trial_and_file_names(True)
@@ -256,13 +256,17 @@ class PoleTracking():
                                          max_img_height=self.template_image.shape[0],
                                          max_img_width=self.template_image.shape[1],
                                          close_and_open_on_each_iteration=False)
+        print("Don't worry it will close automatically once finished ")
         for video in tqdm(self.video_files):
             if verbose: print('Tracking... ' + video)
             img_stack, loc_stack, max_val_stack = self.track(video_file=video)
-            neg_1_filler_labels = np.ones(img_stack.shape[0]) * -1
+            neg_1_filler_labels = np.float64(np.ones(img_stack.shape[0]) * -1)
             h5creator.add_to_h5(img_stack, neg_1_filler_labels)
-            loc_stack_all.append(loc_stack)
-            max_val_stack_all.append(max_val_stack)
+            # loc_stack_all.append(loc_stack)
+            loc_stack_all = np.vstack((loc_stack_all, loc_stack)) if len(loc_stack_all)!=0 else loc_stack
+            # max_val_stack_all.append(max_val_stack)
+            max_val_stack = np.asarray(max_val_stack)
+            max_val_stack_all = np.hstack((max_val_stack_all, max_val_stack)) if len(max_val_stack_all)!=0 else max_val_stack
             len_all += img_stack.shape[0]
         h5creator.close_h5()
 
@@ -488,13 +492,12 @@ class PoleTracking():
         """
         self.template_image = np.asarray(Image.open(img_to_load))
 
-    def cut_out_pole_template(self, video_directory, crop_size=[61, 61], frame_num=2000, file_ind=None):
+    def cut_out_pole_template(self, crop_size=[61, 61], frame_num=2000, file_ind=None):
         """
 
         Parameters
         ----------
-        video_directory :
-            
+
         crop_size :
              (Default value = [61)
         61] :

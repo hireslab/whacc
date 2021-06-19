@@ -3,6 +3,8 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import numpy as np
 import h5py
+from whacc import image_tools
+from whacc import utils
 import copy
 from tqdm import tqdm
 import time
@@ -111,128 +113,158 @@ class basic_metrics():
 #     return np.transpose(out_1), np.transpose(out_0)
 
 
-class distance_metric():
-    def __init__(self, real, predicted, axis=0, frame_num_array=None):
-        self.real = real
-        self.predicted = predicted
-        self.axis = axis
+class pole_plot():
+    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5, len_plot=10, current_frame=0):
+        """
+        Examples
+        ________
+        a = analysis.pole_plot(
+            '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/master_train_test1.h5',
+            pred_val = [0,0,0,0,0,0,0,.2,.4,.5,.6,.7,.8,.8,.6,.4,.2,.1,0,0,0,0],
+            true_val = [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0],
+            len_plot = 10)
+
+        a.plot_it()
+        """
+        self.img_h5_file = img_h5_file
+        self.pred_val = np.asarray(pred_val)
+        self.true_val = np.asarray(true_val)
+        self.threshold = threshold
+        self.len_plot = len_plot
+        self.current_frame = current_frame
+        self.fig_created = False
+        try:
+            self.pred_val_bool = (1 * (self.pred_val > threshold)).flatten()
+        except:
+            self.pred_val_bool = np.asarray(None)
+
+    def plot_it(self):
+        if self.fig_created is False:
+            self.fig, self.axs = plt.subplots(2)
+            self.fig_created = True
+        self.axs[0].clear()
+        self.axs[1].clear()
+        self.fig.suptitle('Touch prediction')
+        s1 = self.current_frame
+        s2 = self.current_frame + self.len_plot
+
+        # plt.axis('off')
+        with h5py.File(self.img_h5_file, 'r') as h:
+            self.current_imgs = image_tools.img_unstacker(h['images'][s1:s2], s2 - s1)
+            # plt.imshow(self.current_imgs)
+            self.axs[0].imshow(self.current_imgs)
+        leg = []
+        # axs[1].plot([None])
+        if len(self.pred_val.shape) != 0:
+            plt.plot(self.pred_val[s1:s2].flatten(), 'k-')
+            leg.append('pred')
+        if len(self.pred_val_bool.shape) != 0:
+            plt.plot(self.pred_val_bool[s1:s2].flatten(), '.g', markersize=10)
+            leg.append('bool_pred')
+        if len(self.true_val.shape) != 0:
+            tmp1 = self.true_val[s1:s2].flatten()
+            plt.scatter(range(len(tmp1)), tmp1, s=80, facecolors='none', edgecolors='r')
+            leg.append('actual')
+        if leg:
+            plt.legend(leg, )
+            plt.ylim([-.2, 1.2])
+
+    def next(self):
+        self.current_frame = self.current_frame + self.len_plot
+        self.plot_it()
+
+
+
+
+
+
+
+class error_analysis():
+    def __init__(self, real_bool, pred_bool, frame_num_array=None):
+        self.real = real_bool
+        self.pred = pred_bool
+        self.type_list = ['ghost', 'ghost', 'append', 'miss', 'miss', 'deduct', 'join', 'split']
+        self.group_inds_neg = []
+        self.group_inds_pos = []
+        self.error_neg = []
+        self.error_pos = []
         if frame_num_array is None:
-            frame_num_array = [len(predicted)]
-        # -----------
-        self.pos_match = []
-        self.neg_match = []
-        self.pred_group_errors_1 = []
-        self.pred_group_errors_0 = []
-        self.group_inds_1 = []
-        self.group_inds_0 = []
-        # need to allow for going thorugh a list of lists where each list is a seperate trial
-        for i1, i2 in self.loop_segments(frame_num_array):
-            pos_match, neg_match = self.get_error_arrays(real[i1:i2], predicted[i1:i2], axis)
-            pred_group_errors_1, group_inds_1 = self.pred_group_errors(predicted[i1:i2], pos_match, 1)
-            pred_group_errors_0, group_inds_0 = self.pred_group_errors(predicted[i1:i2], neg_match, 0)
-            group_inds_1 = group_inds_1 + i1
-            group_inds_0 = group_inds_0 + i1
+            frame_num_array = [len(self.pred)]
 
-            self.pos_match = self.pos_match + list(pos_match)
-            self.neg_match = self.neg_match + list(neg_match)
-            self.pred_group_errors_1 = self.pred_group_errors_1 + list(pred_group_errors_1)
-            self.pred_group_errors_0 = self.pred_group_errors_0 + list(pred_group_errors_0)
-            self.group_inds_1 = self.group_inds_1 + list(group_inds_1)
-            self.group_inds_0 = self.group_inds_0 + list(group_inds_0)
-        # weird this is the only way I could make these into lists of lists instead of lists of arrays
-        for i, (k1, k2) in enumerate(zip(self.group_inds_1, self.group_inds_0)):
-            self.group_inds_1[i] = list(k1)
-            self.group_inds_1[i] = list(k2)
+        for i, (i1, i2) in enumerate(self.loop_segments(frame_num_array)):  # separate the trials
+            d = self.get_diff_array(self.real[i1:i2], self.pred[i1:i2])
 
-        self.pred_group_errors_1_min = [np.nanmin(np.abs(k)) for k in self.pred_group_errors_1]
-        self.pred_group_errors_1_max = [np.nanmax(np.abs(k)) for k in self.pred_group_errors_1]
+            R_neg, P_neg, X_neg, group_inds_neg = self.get_error_segments_plus_border(d, -1)
+            self.group_inds_neg += group_inds_neg
+            for each_x in X_neg:
+                self.error_neg.append(self.get_error_type(each_x))
 
-        self.pred_group_errors_0_min = [np.nanmin(np.abs(k)) for k in self.pred_group_errors_0]
-        self.pred_group_errors_0_max = [np.nanmax(np.abs(k)) for k in self.pred_group_errors_0]
-
-        self.error_0a_splits, self.error_0b_misses, self.error_0c_deducts = self.class_type(self.pred_group_errors_0)
-        self.error_1a_ghosts, self.error_1b_joins, self.error_1c_appends = self.class_type(self.pred_group_errors_1)
+            R_pos, P_pos, X_pos, group_inds_pos = self.get_error_segments_plus_border(d, 1)
+            self.group_inds_pos += group_inds_pos
+            for each_x in X_pos:
+                self.error_pos.append(self.get_error_type(each_x))
 
     @staticmethod
     def loop_segments(frame_num_array):
         frame_num_array = [0] + frame_num_array
         frame_num_array = np.cumsum(frame_num_array)
         return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
-
     @staticmethod
-    def find_closest(real_ind, predicted_ind, axis=0):
-        c = real_ind[:, None] - predicted_ind
-
-        if not list(c):  # on of the arrays inds is an empty list
-            tmp1 = np.ma.masked_array(np.asarray([99999] * len(real_ind) + [99999] * len(predicted_ind)))
-            return tmp1, tmp1
-
-        closest_left = np.max(np.ma.masked_array(c, mask=[c > 0]), axis=axis)
-        closest_left.fill_value = 999999
-
-        closest_right = np.min(np.ma.masked_array(c, mask=[c < 0]), axis=axis)
-        closest_right.fill_value = 999999  # used to be negative 999999
-
-        return closest_left, closest_right
-
-    def get_error_arrays(self, real, predicted, axis):
-
-        real_ind = np.where(real == 1)[0]
-        predicted_ind = np.where(predicted == 1)[0]
-        left1, right1 = self.find_closest(real_ind, predicted_ind, axis=axis)
-
-        real_ind = np.where(real == 0)[0]
-        predicted_ind = np.where(predicted == 0)[0]
-        left0, right0 = self.find_closest(real_ind, predicted_ind, axis=axis)
-
-        L1 = left1.data.astype('float64')
-        L1[np.abs(L1) > 99999] = np.nan
-        R1 = right1.data.astype('float64')
-        R1[np.abs(R1) > 99999] = np.nan
-        L0 = left0.data.astype('float64')
-        L0[np.abs(L0) > 99999] = np.nan
-        R0 = right0.data.astype('float64')
-        R0[np.abs(R0) > 99999] = np.nan
-
-        out_1 = np.vstack((L1, R1))
-        out_0 = np.vstack((L0, R0))
-
-        return np.transpose(out_1), np.transpose(out_0)
-
+    def one_sided_get_type(x):
+        if np.isnan(x[0]) and np.isnan(x[-1]):
+            if x[1] == -1:  # full trial ghost touch
+                return -7
+            elif x[1] == 1:  # full trial miss touch
+                return -4
+        if np.isnan(x[0]):  # edge case (error being parsed is @ index 0 or -1)
+            return -1
+        #                                          ghost.   ghost.   append.  miss.   miss.    deduct.
+        ind = np.where(np.all(x[:2] == np.asarray([[0, -1], [1, -1], [2, -1], [0, 1], [-1, 1], [2, 1]]), axis=1))[0][0]
+        return ind
     @staticmethod
-    def pred_group_errors(predicted, in_match, match_type):
-        """
-    pred_bool the prediction bool
-    in_match: either neg_match or pos_match
-    match_type: either 1 or 0 depending on which one we are interested in. 0 for neg_match
-    1 for pos_match
-    """
+    def type_parser(x):
+        minx = np.min(x)
+        maxx = np.max(x)
+        sort_vals = [minx, maxx]
+        if np.any(np.all(sort_vals == np.asarray([[1, 1], [1, 2], [2, 2]]), axis=1)):  # joins
+            return 6
+        elif maxx == minx and maxx == 5:  # splits
+            return 7
+        else:
+            return maxx  # everything else is already the correct index return the max
 
-        _, group_inds = utils.group_consecutives(np.where(predicted == match_type)[0])
-        out = []
+    def get_error_type(self, x):
+        return self.type_parser([self.one_sided_get_type(x), self.one_sided_get_type(np.flip(x))])
+    @staticmethod
+    def get_diff_array(real_bool, pred_bool):
+        diff_array = np.asarray(real_bool) - np.asarray(pred_bool)
+        diff_array = diff_array + (real_bool + pred_bool == 2) * 2  # TP = 2, TN = 0, FP = -1, FN = 1
+        return diff_array
+
+    def get_error_segments_plus_border(self, d, error_num_one_or_neg_one):
+        group_inds, _ = utils.group_consecutives(np.where(d == error_num_one_or_neg_one)[0])
+        R = []
+        P = []
+        X = []
         for k in group_inds:
-            out.append([in_match[kk, :][np.nanargmin(np.abs(in_match[kk, :]))] for kk in k])
-        return out, group_inds
+            R_ind = k[-1] + 2
+            L_tmp = k[0] - 1
+            L_ind = np.max([L_tmp, 0])
+            #  for this error segment (plus edges) for ...
+            r = self.real[L_ind:R_ind]  # real,
+            p = self.pred[L_ind:R_ind]  # predicted and
+            x = d[L_ind:R_ind]  # the diff array (all match types).
 
-    @staticmethod
-    def class_type(pred_group_errors_tmp):
-        """
-    logic: only one class can exist for each array
-    all MISS_JOIN's have 2 ones... return
-    all APPEND's are NOT MISS_JOIN that have a 0 and a 1 in them... return
-    all SPLIT_GHOST's are remainder that are not MISS_JOIN or APPEND... return
-    """
-        a_SPLIT_GHOST = [False] * len(pred_group_errors_tmp)
-        a_MISS_JOIN = [False] * len(pred_group_errors_tmp)
-        a_APPEND = [False] * len(pred_group_errors_tmp)
-        # logic: only one class can exist for each array
-        for i, k in enumerate(pred_group_errors_tmp):
-            a_MISS_JOIN[i] = np.sum(np.abs(k) == 1) == 2  # all MISS_JOIN's have 2 ones
-            if not a_MISS_JOIN[i]:
-                only_one_one = np.sum(np.abs(k) == 1) == 1
-                at_least_one_zero = np.sum(np.abs(k) == 1) >= 1
-                if only_one_one and at_least_one_zero:
-                    a_APPEND[i] = True  # all APPEND's are NOT MISS_JOIN that have a 0 and a 1 in them
-                else:
-                    a_SPLIT_GHOST[i] = True  # all SPLIT_GHOST's are remainder that are not MISS_JOIN's or APPEND's
-        return np.asarray(a_SPLIT_GHOST), np.asarray(a_MISS_JOIN), np.asarray(a_APPEND)
+            if L_tmp < 0:  # edge case to the left
+                r = np.append(np.nan, r)
+                p = np.append(np.nan, p)
+                x = np.append(np.nan, x)
+            if R_ind > len(d):  # edge case to the right
+                r = np.append(r, np.nan)
+                p = np.append(p, np.nan)
+                x = np.append(x, np.nan)
+            R.append(r)
+            P.append(p)
+            X.append(x)
+
+        return R, P, X, group_inds

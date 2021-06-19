@@ -12,7 +12,7 @@ class subset_h5_generator:
         with h5py.File(self.h5_img_file, 'r') as F:
             self.labels = F[label_key][:]
 
-    def save_subset_h5_file(self, file_save_name = None):
+    def save_subset_h5_file(self, file_save_dir = None, save_name = None):
         """
 
         Parameters
@@ -24,8 +24,11 @@ class subset_h5_generator:
         -------
 
         """
-        if file_save_name is None:
-            file_save_name = self.h5_img_file.split('.h5')[0] + '_subset.h5'
+        if save_name is None:
+            save_name = os.path.basename(self.h5_img_file).split('.h5')[0] + '_subset.h5'
+        if file_save_dir is None:
+            file_save_dir = os.path.dirname(self.h5_img_file)
+        file_save_name = file_save_dir + os.path.sep + save_name
         all_labels = self.labels
         all_inds = self.all_inds
         try:
@@ -166,9 +169,9 @@ class subset_h5_generator:
         onset_list = []
         offset_list = []
         for k1, k2 in zip(up_start, down_start):
-            onset_list.append(numpy.asarray(range(k1 - seg_len_before_touch, k1 + seg_len_after_touch)))
+            onset_list.append(numpy.asarray(range(k1 - seg_len_before_touch, k1 + seg_len_after_touch)).astype('int'))
             all_inds = numpy.concatenate((all_inds, onset_list[-1]))
-            offset_list.append(numpy.asarray(range(k2 - 1 - seg_len_after_touch, k2 - 1 + seg_len_before_touch)))
+            offset_list.append(numpy.asarray(range(k2 - 1 - seg_len_after_touch, k2 - 1 + seg_len_before_touch)).astype('int'))
             all_inds = numpy.concatenate((all_inds, offset_list[-1]))
         retrain_H5_info = {'seg_len_look_dist': seg_len_before_touch,
                            'min_y': min_y,
@@ -177,7 +180,7 @@ class subset_h5_generator:
                            'num_high_prob_past_max_y': seg_len_after_touch}
         # inds_2_add = numpy.linspace(0, 50 - 1, ).astype(int)
         # all_inds = numpy.concatenate((numpy.float64(inds_2_add), all_inds))
-        self.all_inds = all_inds
+        self.all_inds = all_inds.astype('int')
         self.onset_list = onset_list
         self.offset_list = offset_list
         self.retrain_H5_info = retrain_H5_info

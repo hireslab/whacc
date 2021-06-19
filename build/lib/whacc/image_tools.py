@@ -354,7 +354,7 @@ def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
     return all_augment, out_labels
 
 
-def img_unstacker(img_array, num_frames_wide=8):
+def img_unstacker(img_array, num_frames_wide=8, color_channel = True):
     """unstacks image stack and combines them into one large image for easy display. reads left to right and then top to bottom.
 
     Parameters

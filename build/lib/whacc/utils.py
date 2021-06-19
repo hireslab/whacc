@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
+
 def lister_it(in_list, keep_strings=None, remove_string=None):
     """
 
@@ -53,35 +54,27 @@ def plot_pole_tracking_max_vals(h5_file):
             plt.plot()
 
 
-def get_class_info(c, include_underscores=False):
-    """look at the variables and methods of a class, prints an aligned list with their respective 'type'
-
-    Parameters
-    ----------
-    c : class
-        calss variable
-    include_underscores : bool
-        display the secret methods/variables starting with '_' (Default value = False)
-
-    Returns
-    -------
-    type
-        prints out a nice list of the modethods
-
-    """
+def get_class_info(c, sort_by_type=True, include_underscore_vars=False):
     names = []
     type_to_print = []
     for k in dir(c):
-        if include_underscores is False and k[0] != '_':
+        if include_underscore_vars is False and k[0] != '_':
             tmp1 = str(type(eval('c.' + k)))
             type_to_print.append(tmp1.split("""'""")[-2])
             names.append(k)
-        elif include_underscores:
+        elif include_underscore_vars:
             tmp1 = str(type(eval('c.' + k)))
             type_to_print.append(tmp1.split("""'""")[-2])
             names.append(k)
     len_space = ' ' * max(len(k) for k in names)
-    for k1, k2 in zip(names, type_to_print):
+    if sort_by_type:
+        ind_array = np.argsort(type_to_print)
+    else:
+        ind_array = np.argsort(names)
+
+    for i in ind_array:
+        k1 = names[i]
+        k2 = type_to_print[i]
         k1 = (k1 + len_space)[:len(len_space)]
         print(k1 + ' type->   ' + k2)
 
@@ -397,17 +390,44 @@ def loop_segments(frame_num_array):
     >>>[0, 1, 2, 3]
     >>>[4, 5, 6, 7, 8]
     """
-
+    frame_num_array = list(frame_num_array)
     frame_num_array = [0] + frame_num_array
     frame_num_array = np.cumsum(frame_num_array)
     return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
 
+def isnotebook():
+    try:
+        c = str(get_ipython().__class__)
+        shell = get_ipython().__class__.__name__
+        if 'colab' in c:
+            return True
+        elif shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
 
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_ below programs users will likely not use_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
+
 
 def _get_human_contacts_(all_h5s):
     """
@@ -422,17 +442,43 @@ def _get_human_contacts_(all_h5s):
     """
     h_cont = []
     a = [k.split(os.path.sep)[-1].split('_', maxsplit=1)[-1] for k in all_h5s]
-    inds_of_inds = get_inds_of_inds(a)
+    inds_of_inds, list_of_uniq_files = get_inds_of_inds(a, True)
     for i, k in enumerate(inds_of_inds):
         tmp1 = np.array([])
         for ii, kk in enumerate(k):
             with h5py.File(all_h5s[kk], 'r') as h:
                 tmp1 = np.vstack([tmp1, h['labels'][:]]) if tmp1.size else h['labels'][:]
         h_cont.append(tmp1)
-    return h_cont
+    return h_cont, list_of_uniq_files
 
 
 def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=100):
+    """
+
+    Parameters
+    ----------
+    h5c : h5 creator class
+    all_h5s_imgs : list of h5s with images
+    h_cont : a tensor of human contacts people by frames trial H5 files (down right deep)
+    borders : for touch 0000011100000 it will find teh 111 in it and get all the bordering areas around it. points are
+    unique so 0000011100000 and 0000010100000 will return the same index
+    max_pack_val : speeds up the process by transferring data in chunks of this max size instead of building them all up in memory
+    it's a max instead of a set value because it can be if the len(IMAGES)%max_pack_val is equal to 0 or 1 it will crash, so I calculate it
+    so that it wont crash.
+
+    Returns
+    -------
+    saves an H5 file
+    Examples
+    ________
+    all_h5s = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/finished_contacts/')
+    all_h5s_imgs = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/H5_data/')
+    h_cont = utils._get_human_contacts_(all_h5s)
+    h5c = image_tools.h5_iterative_creator('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/test_____.h5',
+                                           overwrite_if_file_exists = True,
+                                           color_channel = False)
+    utils.create_master_dataset(h5c, all_h5s_imgs, h_cont, borders = 80, max_pack_val = 100)
+    """
     frame_nums = []
     for k, k2 in zip(all_h5s_imgs, h_cont):
         with h5py.File(k, 'r') as h:
@@ -470,3 +516,80 @@ def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=10
 
     with h5py.File(h5c.h5_full_file_name, 'r+') as h:
         h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
+
+
+def get_time_it(txt):
+    """
+  Example
+  -------
+  import re
+  import matplotlib.pyplot as plt
+  for k in range(8):
+    S = 'test '*10**k
+    s2 = 'test'
+    %time [m.start() for m in re.finditer(S2, S)]
+
+  # then copy it into a string like below
+
+  txt = '''
+  CPU times: user 0 ns, sys: 9.05 ms, total: 9.05 ms
+  Wall time: 9.01 ms
+  CPU times: user 12 µs, sys: 1 µs, total: 13 µs
+  Wall time: 15.7 µs
+  CPU times: user 48 µs, sys: 3 µs, total: 51 µs
+  Wall time: 56.3 µs
+  CPU times: user 281 µs, sys: 0 ns, total: 281 µs
+  Wall time: 287 µs
+  CPU times: user 2.42 ms, sys: 0 ns, total: 2.42 ms
+  Wall time: 2.43 ms
+  CPU times: user 21.8 ms, sys: 22 µs, total: 21.8 ms
+  Wall time: 21.2 ms
+  CPU times: user 198 ms, sys: 21.5 ms, total: 219 ms
+  Wall time: 214 ms
+  CPU times: user 1.83 s, sys: 191 ms, total: 2.02 s
+  Wall time: 2.02 s
+  '''
+  data = get_time_it(txt)
+  ax = plt.plot(data[1:])
+  plt.yscale('log')
+  """
+    vars = [k.split('\n')[0] for k in txt.split('Wall time: ')[1:]]
+    a = dict()
+    a['s'] = 10 ** 0
+    a['ms'] = 10 ** -3
+    a['µs'] = 10 ** -6
+    data = []
+    for k in vars:
+        units = k.split(' ')[-1]
+        data.append(float(k.split(' ')[0]) * a[units])
+    return data
+
+
+def save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename=0):
+    tst_cor = []
+    with h5py.File(H5_file, 'a') as hf:
+        for k in hf.keys():
+            if hf.get(k):
+                tst_cor.append(0)
+            else:
+                tst_cor.append(1)
+        if any(tst_cor):
+            print('Corrupt file found, creating new file')
+            H5_fileTMP = H5_file + 'TMP'
+            with h5py.File(H5_file + 'TMP', 'w') as hf2:
+                for k in hf.keys():
+                    if hf.get(k):
+                        print('Adding key ' + k + ' to new temp H5 file...')
+                        hf2.create_dataset(k, data=hf[k])
+                    else:
+                        print('***Key ' + k + ' was corrupt, skipping this key...')
+                hf2.close()
+                hf.close()
+            if do_del_and_rename:
+                print('Deleting corrupt H5 file')
+                os.remove(H5_file)
+                print('renaming new h5 file ')
+                os.rename(H5_fileTMP, H5_file)
+        else:
+            print('File is NOT corrupt!')
+    print('FINISHED')
