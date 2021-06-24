@@ -126,6 +126,7 @@ class pole_plot():
 
         a.plot_it()
         """
+        self.isnotebook = utils.isnotebook()
         self.img_h5_file = img_h5_file
         self.pred_val = np.asarray(pred_val)
         self.true_val = np.asarray(true_val)
@@ -139,7 +140,8 @@ class pole_plot():
             self.pred_val_bool = np.asarray(None)
 
     def plot_it(self):
-        if self.fig_created is False:
+
+        if self.fig_created is False or self.isnotebook:  # we need to create a new fig every time if we are in colab or jupyter
             self.fig, self.axs = plt.subplots(2)
             self.fig_created = True
         self.axs[0].clear()
@@ -174,13 +176,9 @@ class pole_plot():
         self.plot_it()
 
 
-
-
-
-
-
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
+        frame_num_array = frame_num_array.astype(int)
         self.real = real_bool
         self.pred = pred_bool
         self.type_list = ['ghost', 'ghost', 'append', 'miss', 'miss', 'deduct', 'join', 'split']
@@ -209,6 +207,7 @@ class error_analysis():
         frame_num_array = [0] + frame_num_array
         frame_num_array = np.cumsum(frame_num_array)
         return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
+
     @staticmethod
     def one_sided_get_type(x):
         if np.isnan(x[0]) and np.isnan(x[-1]):
@@ -221,6 +220,7 @@ class error_analysis():
         #                                          ghost.   ghost.   append.  miss.   miss.    deduct.
         ind = np.where(np.all(x[:2] == np.asarray([[0, -1], [1, -1], [2, -1], [0, 1], [-1, 1], [2, 1]]), axis=1))[0][0]
         return ind
+
     @staticmethod
     def type_parser(x):
         minx = np.min(x)
@@ -235,6 +235,7 @@ class error_analysis():
 
     def get_error_type(self, x):
         return self.type_parser([self.one_sided_get_type(x), self.one_sided_get_type(np.flip(x))])
+
     @staticmethod
     def get_diff_array(real_bool, pred_bool):
         diff_array = np.asarray(real_bool) - np.asarray(pred_bool)

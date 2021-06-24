@@ -7,6 +7,24 @@ import copy
 from tqdm import tqdm
 import time
 import os
+from whacc import utils
+
+
+def stack_imgs_lag(imgs, frames_1=None, buffer=2, shift_to_the_right_by=0):
+    if frames_1 is None:
+        frames_1 = [imgs.shape[0]]
+    array_group = []
+    for k1, k2 in utils.loop_segments(frames_1):
+        x = (np.random.random(imgs[0].shape) * 255).astype(np.uint8)
+        tile_axes = [1] * len(x.shape) + [buffer]
+        x = np.tile(x[:, :, None], tile_axes)
+        tmp1 = x.copy()
+        for ii, stack_i in enumerate(range(k1, k2)):
+            x = np.concatenate((x, imgs[stack_i][:, :, None]), axis=2)
+        x = np.concatenate((x, tmp1), axis=2)
+        for k3 in range(k2 - k1):
+            array_group.append(x[:, :, k3 + shift_to_the_right_by: k3 + 1 + buffer + shift_to_the_right_by])
+    return np.asarray(array_group)
 
 
 def get_h5_key_and_concatenate(h5_list, key_name='labels'):
@@ -94,7 +112,7 @@ def del_h5_with_term(h5_list, str_2_cmp):
 
 
 def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True,
-             disable_TQDM=False, skip_if_label_is_neg_1=True):
+             disable_TQDM=False, skip_if_label_is_neg_1=True, set_seed = None):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -129,6 +147,8 @@ def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=100
     for iii, h5_to_split in enumerate(h5_to_split_list):
         with h5py.File(h5_to_split, 'r') as h:
             L = len(h['labels'][:])
+            if set_seed is not None:
+                np.random.seed(set_seed)
             mixed_inds = np.random.choice(L, L, replace=False)
             if skip_if_label_is_neg_1:  # remove -1s
                 mixed_inds = mixed_inds[mixed_inds != -1]
@@ -190,14 +210,18 @@ class h5_iterative_creator():
                  max_img_height=61,
                  max_img_width=61,
                  close_and_open_on_each_iteration=True,
-                 color_channel=True):
+                 color_channel=True,
+                 add_to_existing_H5 = False):
 
         if not close_and_open_on_each_iteration:
             print('**remember to CLOSE the H5 file when you are done!!!**')
         if overwrite_if_file_exists and os.path.isfile(h5_new_full_file_name):
             os.remove(h5_new_full_file_name)
         self.h5_full_file_name = h5_new_full_file_name
-        self.hf_file = h5py.File(h5_new_full_file_name, "w")
+        if add_to_existing_H5:
+            self.hf_file = h5py.File(h5_new_full_file_name, "r+")
+        else:
+            self.hf_file = h5py.File(h5_new_full_file_name, "w")
         self.color_channel = color_channel
         self.max_img_height = max_img_height
         self.max_img_width = max_img_width
@@ -354,7 +378,7 @@ def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
     return all_augment, out_labels
 
 
-def img_unstacker(img_array, num_frames_wide=8, color_channel = True):
+def img_unstacker(img_array, num_frames_wide=8, color_channel=True):
     """unstacks image stack and combines them into one large image for easy display. reads left to right and then top to bottom.
 
     Parameters

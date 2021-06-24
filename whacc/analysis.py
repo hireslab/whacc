@@ -140,10 +140,10 @@ class pole_plot():
             self.pred_val_bool = np.asarray(None)
 
     def plot_it(self):
-        if not utils.isnotebook():
-            if self.fig_created is False or self.isnotebook:  # we need to create a new fig every time if we are in colab or jupyter
-                self.fig, self.axs = plt.subplots(2)
-                self.fig_created = True
+
+        if self.fig_created is False or self.isnotebook:  # we need to create a new fig every time if we are in colab or jupyter
+            self.fig, self.axs = plt.subplots(2)
+            self.fig_created = True
         self.axs[0].clear()
         self.axs[1].clear()
         self.fig.suptitle('Touch prediction')
