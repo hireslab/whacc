@@ -9,6 +9,27 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
+def four_class_labels_from_binary(x):
+    a = np.asarray(x)
+    b = np.asarray([0]+list(np.diff(a)))
+    c = a+b
+    c[c==-1] = 3
+    return c
+
+
+def print_h5_keys(h5file):
+    with h5py.File(h5file, 'r') as h:
+        print_list_with_inds(h.keys())
+
+
+def copy_h5_key_to_another_h5(h5_to_copy_from, h5_to_copy_to, label_string):
+    with h5py.File(h5_to_copy_from, 'r') as h:
+        with h5py.File(h5_to_copy_to, 'r+') as h2:
+            try:
+                h2[label_string][:] = h[label_string][:]
+            except:
+                h2.create_dataset(label_string, shape=np.shape(h[label_string][:]), data=h[label_string][:])
+
 
 def lister_it(in_list, keep_strings=None, remove_string=None):
     """
@@ -393,7 +414,9 @@ def loop_segments(frame_num_array):
     frame_num_array = list(frame_num_array)
     frame_num_array = [0] + frame_num_array
     frame_num_array = np.cumsum(frame_num_array)
+    frame_num_array = frame_num_array.astype(int)
     return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
+
 
 def isnotebook():
     try:
@@ -409,6 +432,7 @@ def isnotebook():
             return False  # Other type (?)
     except NameError:
         return False  # Probably standard Python interpreter
+
 
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
@@ -454,7 +478,6 @@ def _get_human_contacts_(all_h5s):
 
 def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=100):
     """
-
     Parameters
     ----------
     h5c : h5 creator class
@@ -481,6 +504,8 @@ def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=10
     """
     frame_nums = []
     for k, k2 in zip(all_h5s_imgs, h_cont):
+        if len(k2.shape) == 1:
+            k2 = np.vstack((k2, k2))
         with h5py.File(k, 'r') as h:
             max_human_label = np.max(k2, axis=0)
             mean_human_label = np.mean(k2, axis=0)
@@ -495,7 +520,7 @@ def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=10
                                   ' increase max_pack_val to prevent this error']
             pack_every_x = np.max(pack_every_x)
 
-            np.max([k for k in np.flip(range(3, 100)) if len(b) % k >= 2])
+            # np.max([k for k in np.flip(range(3, 100)) if len(b) % k >= 2])
             new_imgs = np.array([])
             new_labels = np.array([])
             cntr = 0
@@ -516,6 +541,7 @@ def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=10
 
     with h5py.File(h5c.h5_full_file_name, 'r+') as h:
         h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
+        h.create_dataset('inds_extracted', shape=np.shape(b), data=b)
 
 
 def get_time_it(txt):
