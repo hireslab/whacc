@@ -48,6 +48,25 @@ def get_h5_key_and_concatenate(h5_list, key_name='labels'):
     return out
 
 
+def get_h5_key_and_dont_concatenate(h5_list, key_name='labels'):
+    """
+    simply extract and concatenate all of one key "key_name" from many H5 files, I use it to get balance the data touch
+    and not touch frames when training a model with a list of different H5 files
+    Parameters
+    ----------
+    h5_list : list
+        list of full paths to H5 file(s).
+    key_name : str
+        default 'labels', the key to get the data from the H5 file
+
+    """
+    out = []
+    for i, k in enumerate(h5_list):
+        with h5py.File(k, 'r') as h:
+            out.append(list(h[key_name][:]))
+    return out
+
+
 def clone_h5_basic_info(H5_list, fold_name=None, file_end='_QUICK_SAVE.h5'):
     """
     copies all the info form H5 into another H5 file NOT INCLUDING the labels or images. so it have all the file info,
@@ -111,8 +130,120 @@ def del_h5_with_term(h5_list, str_2_cmp):
             print('_______')
 
 
+def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000,
+                           add_numbers_to_name=True,
+                           disable_TQDM=False, set_seed=None, color_channel = True):
+    """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
+
+    Parameters
+    ----------
+    h5_to_split_list : list
+        list of strings with full file names to the H5 file(s) to be split
+    split_percentages : list
+        list of numbers, can be ints [20, 1, 1] and or floats [.8, .2], it simply takes the sum and creates a percentage
+    temp_base_name : str or list
+        full path to new h5 file e.g "'/Users/phil/tempH5_" and the program will add the number and the ".h5"
+        in this case tempH5_0.h5, tempH5_1.h5, tempH5_2.h5 etc. or if it is a list it must be equal in length to
+        'split_percentages' and each file will be named based on that list
+    chunk_size = int
+        default 10000, max amount of frames to hold in memory at a time before storing in H5 file. Should almost never
+        be an issue but just in case you can set to a lower value if you experience memory issues.
+    add_numbers_to_name = bool
+        default true, just in case you don't want the numbers on the end of your h5 file.
+    Returns
+    Examples
+    --------
+    from whacc import image_tools, utils
+    h5_to_split_list = "/Users/phil/Downloads/untitled folder 2/AH0000x000000_small_tester.h5"
+    h5_to_split_list = [h5_to_split_list]
+    utils.print_h5_keys(h5_to_split_list[0])
+    bd = '/Users/phil/Downloads/untitled folder 2/'
+    image_tools.split_h5_loop_segments(h5_to_split_list, [1, 3], [bd+'TRASH', bd+'TRASH2'], chunk_size=10000, add_numbers_to_name=False,
+                 disable_TQDM=False, set_seed = None)
+    -------
+    """
+    if isinstance(temp_base_name, str):
+        temp_base_name = [temp_base_name] * len(split_percentages)
+    else:
+        assert len(temp_base_name) == len(
+            split_percentages), """if 'temp_base_name' is a list of strings, it must be equal in length to 'split_percentages'"""
+
+    frame_num_array_list = get_h5_key_and_dont_concatenate(h5_to_split_list, 'frame_nums')
+
+    total_frames = len(get_h5_key_and_concatenate(h5_to_split_list, key_name='labels'))
+    cnt1 = 0
+    h5_creators = dict()
+    split_percentages = split_percentages / np.sum(split_percentages)
+    # assert(sum(split_percentages)==1)
+    final_names = []
+    for iii, h5_to_split in enumerate(h5_to_split_list):
+        with h5py.File(h5_to_split, 'r') as h:
+            tmp_frame_list = frame_num_array_list[iii]
+            L = len(tmp_frame_list)
+
+            if set_seed is not None:
+                np.random.seed(set_seed)
+            mixed_inds = np.random.choice(L, L, replace=False)
+
+            random_segment_inds = np.split(mixed_inds, np.ceil(L * np.cumsum(split_percentages[:-1])).astype('int'))
+            random_segment_inds = [sorted(tmpk) for tmpk in random_segment_inds]
+            random_frame_inds = [[None]] * len(random_segment_inds)
+            list_of_new_frame_nums = [[None]] * len(random_segment_inds)
+            loop_seg_list = list(utils.loop_segments(tmp_frame_list))
+            for pi, p in enumerate(random_segment_inds):
+                tmp1 = []
+                tmp2 = []
+                for pp in p:
+                    x = list(loop_seg_list[pp])
+                    tmp1 += list(range(x[0], x[1]))
+                    tmp2.append(tmp_frame_list[pp])
+                random_frame_inds[pi] = tmp1
+                list_of_new_frame_nums[pi] = tmp2
+
+            for i, k in enumerate(split_percentages):  # for each new h5 created
+                if iii == 0:  # create the H5 creators
+                    if add_numbers_to_name:
+                        final_names.append(temp_base_name[i] + '_' + str(i) + '.h5')
+                    else:
+                        final_names.append(temp_base_name[i] + '.h5')
+                    h5_creators[i] = h5_iterative_creator(final_names[-1],
+                                                          overwrite_if_file_exists=True,
+                                                          close_and_open_on_each_iteration=True,
+                                                          color_channel = color_channel)
+                ims = []
+                labels = []
+                for ii in tqdm(sorted(random_frame_inds[i]), disable=disable_TQDM, total=total_frames, initial=cnt1):
+                    cnt1 += 1
+                    ims.append(h['images'][ii])
+                    labels.append(h['labels'][ii])
+                    if ii > 0 and ii % chunk_size == 0:
+                        h5_creators[i].add_to_h5(np.asarray(ims), np.asarray(labels))
+                        ims = []
+                        labels = []
+                h5_creators[i].add_to_h5(np.asarray(ims), np.asarray(labels))
+                with h5py.File(h5_creators[i].h5_full_file_name, 'r+') as h:
+                    frame_nums = list_of_new_frame_nums[i]
+                    h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
+    # # add the frame info to each
+    # for i, frame_nums in enumerate(list_of_new_frame_nums):
+    #     with h5py.File(h5_creators[i].h5_full_file_name, 'r+') as h:
+    #         h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
+    return final_names
+
+def make_sure_frame_nums_exist(h5file):
+    with h5py.File(h5file, 'r+') as h:
+        key_list = list(h.keys())
+        if 'frame_nums' in key_list:
+            print("""'frame_nums' already in the key list""")
+            return None
+        if 'trial_nums_and_frame_nums' not in key_list:
+            print("""key 'trial_nums_and_frame_nums' must be in the provided h5 this is the only reason program exists""")
+            return None
+        frame_nums = h['trial_nums_and_frame_nums'][1, :]
+        h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
+
 def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True,
-             disable_TQDM=False, skip_if_label_is_neg_1=True, set_seed = None):
+             disable_TQDM=False, skip_if_label_is_neg_1=False, set_seed=None, color_channel = True):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -161,7 +292,7 @@ def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=100
                         final_names.append(temp_base_name[i] + '.h5')
                     h5_creators[i] = h5_iterative_creator(final_names[-1],
                                                           overwrite_if_file_exists=True,
-                                                          close_and_open_on_each_iteration=True)
+                                                          close_and_open_on_each_iteration=True, color_channel = color_channel)
                 ims = []
                 labels = []
                 # print('starting ' + str(iii*i + 1) + ' of ' + str(len(split_percentages)*len(h5_to_split_list)))
@@ -211,7 +342,7 @@ class h5_iterative_creator():
                  max_img_width=61,
                  close_and_open_on_each_iteration=True,
                  color_channel=True,
-                 add_to_existing_H5 = False):
+                 add_to_existing_H5=False):
 
         if not close_and_open_on_each_iteration:
             print('**remember to CLOSE the H5 file when you are done!!!**')
