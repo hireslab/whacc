@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 mp4_path = "/Users/phil/Dropbox/Autocurator/testing_data/MP4s"
 mp4_path = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/"
+mp4_path = "/Users/phil/Downloads/untitled folder 2/"
 # mp4_path = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/delete_after_oct_2021/"
 search_term = '*.mp4'
 ##

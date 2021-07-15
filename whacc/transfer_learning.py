@@ -143,7 +143,7 @@ class save_and_plot_history(keras.callbacks.Callback):
         self.plot_metric_inds = plot_metric_inds
 
     def on_epoch_end(self, epoch, logs=None):
-        if epoch == 0:
+        if epoch == 0 or 'logs_names' not in dir(self):
 
             self.L = len(self.model.metrics_names)
             L = len(self.model.metrics_names)
@@ -167,7 +167,8 @@ class save_and_plot_history(keras.callbacks.Callback):
                 self.all_logs = np.vstack((self.all_logs, np.asarray(log_list)))
             else:
                 self.all_logs = np.concatenate((self.all_logs, np.asarray(log_list)), axis=0)
-            if epoch > 0:
+            # if epoch > 0:
+            if len(self.all_logs.shape)>1:
                 display.clear_output(wait=True)
                 for kmark, kcol, k in zip(self.markers, self.color, self.plot_metric_inds):
                     plt.plot(self.all_logs[:, k], color=kcol, linestyle=kmark)

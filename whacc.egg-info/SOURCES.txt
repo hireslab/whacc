@@ -37,6 +37,7 @@ setup.py
 ./whacc/examples/re_pole_down.py
 ./whacc/examples/re_pole_down_2.py
 ./whacc/examples/read_frame_test.py
+./whacc/examples/run_all_model.py
 ./whacc/examples/scratch.py
 ./whacc/examples/scratch_2.py
 ./whacc/examples/track_moving_test.py
@@ -71,6 +72,7 @@ whacc/examples/make_master_training_H5_example.py
 whacc/examples/re_pole_down.py
 whacc/examples/re_pole_down_2.py
 whacc/examples/read_frame_test.py
+whacc/examples/run_all_model.py
 whacc/examples/scratch.py
 whacc/examples/scratch_2.py
 whacc/examples/track_moving_test.py

@@ -10,3 +10,4 @@ whacc/examples/read_frame_test.py
 whacc/examples/re_pole_down_2.py
 build/lib/whacc/examples/scratch_2.py
 build/lib/whacc/examples/scratch.py
+*.DS_Store

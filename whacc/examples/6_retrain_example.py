@@ -63,6 +63,7 @@ class_weights = {i: rebalance[i] for i in range(2)}
 # Early stopping
 callbacks = [keras.callbacks.EarlyStopping(monitor=monitor, patience=patience),
              ModelCheckpoint('/content/temp_saves/savetest.hdf5', save_best_only=True)]  ###%%$^&$&&$
+
 history = model.fit(my_training_batch_generator, epochs=epochs,
                     validation_data=my_validation_batch_generator,
                     callbacks=callbacks,

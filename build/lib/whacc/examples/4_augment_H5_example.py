@@ -41,7 +41,7 @@ plt.show()
 
 
 
-# once we are happy with out augmentation process we can make an augmented H5 file using class
+# once we are happy with our augmentation process we can make an augmented H5 file using class
 new_H5_file = h5_subset_file.split('.')[0] + '_AUG_min.h5' # create new file name based on teh original H5 name
 h5creator = image_tools.h5_iterative_creator(new_H5_file, overwrite_if_file_exists=True,
                                              close_and_open_on_each_iteration=True)
