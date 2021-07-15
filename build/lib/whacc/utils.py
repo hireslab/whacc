@@ -1,3 +1,5 @@
+import shutil
+
 import numpy as np
 from pathlib import Path
 import os
@@ -8,20 +10,37 @@ import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
+import copy
+
+from whacc import image_tools
 
 
-def print_h5_keys(h5file):
+def four_class_labels_from_binary(x):
+    a = np.asarray(x)
+    b = np.asarray([0] + list(np.diff(a)))
+    c = a + b
+    c[c == -1] = 3
+    return c
+
+
+def print_h5_keys(h5file, return_list = False):
     with h5py.File(h5file, 'r') as h:
-        print_list_with_inds(h.keys())
+        x = copy.deepcopy(list(h.keys()))
+        print_list_with_inds(x)
+        if return_list:
+            return x
 
 
-def copy_h5_key_to_another_h5(h5_to_copy_from, h5_to_copy_to, label_string):
+def copy_h5_key_to_another_h5(h5_to_copy_from, h5_to_copy_to, label_string_to_copy_from, label_string_to_copy_to=None):
+    if label_string_to_copy_to is None:
+        label_string_to_copy_to = label_string_to_copy_from
     with h5py.File(h5_to_copy_from, 'r') as h:
         with h5py.File(h5_to_copy_to, 'r+') as h2:
             try:
-                h2[label_string][:] = h[label_string][:]
+                h2[label_string_to_copy_to][:] = h[label_string_to_copy_from][:]
             except:
-                h2.create_dataset(label_string, shape=np.shape(h[label_string][:]), data=h[label_string][:])
+                h2.create_dataset(label_string_to_copy_to, shape=np.shape(h[label_string_to_copy_from][:]),
+                                  data=h[label_string_to_copy_from][:])
 
 
 def lister_it(in_list, keep_strings=None, remove_string=None):
@@ -68,7 +87,7 @@ def plot_pole_tracking_max_vals(h5_file):
             plt.plot()
 
 
-def get_class_info(c, sort_by_type=True, include_underscore_vars=False):
+def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type = False):
     names = []
     type_to_print = []
     for k in dir(c):
@@ -91,6 +110,8 @@ def get_class_info(c, sort_by_type=True, include_underscore_vars=False):
         k2 = type_to_print[i]
         k1 = (k1 + len_space)[:len(len_space)]
         print(k1 + ' type->   ' + k2)
+    if return_name_and_type:
+        return names, type_to_print
 
 
 def group_consecutives(vals, step=1):
@@ -135,7 +156,7 @@ def group_consecutives(vals, step=1):
     return result, result_ind
 
 
-def get_h5s(base_dir):
+def get_h5s(base_dir, print_h5_list = True):
     """
 
     Parameters
@@ -151,7 +172,8 @@ def get_h5s(base_dir):
     for path in Path(base_dir + os.path.sep).rglob('*.h5'):
         H5_file_list.append(str(path.parent) + os.path.sep + path.name)
     H5_file_list.sort()
-    print_list_with_inds(H5_file_list)
+    if print_h5_list:
+        print_list_with_inds(H5_file_list)
     return H5_file_list
 
 
@@ -257,7 +279,7 @@ def get_model_list(model_save_dir):
     return model_2_load_all
 
 
-def get_files(base_dir, search_term):
+def get_files(base_dir, search_term = ''):
     """
 
     Parameters
@@ -483,10 +505,11 @@ def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=10
     so that it wont crash.
 
     Returns
-    -------
+    -------create_master_dataset
     saves an H5 file
     Examples
     ________
+
     all_h5s = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/finished_contacts/')
     all_h5s_imgs = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/H5_data/')
     h_cont = utils._get_human_contacts_(all_h5s)
@@ -612,3 +635,162 @@ def save_what_is_left_of_your_h5_file(H5_file, do_del_and_rename=0):
         else:
             print('File is NOT corrupt!')
     print('FINISHED')
+
+
+def stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0):
+    """
+
+    Parameters
+    ----------
+    f : h5 file with SINGLE FRAMES this is ment to be a test program. if used long term I will change this part
+    f2 :
+    buffer :
+    shift_to_the_right_by :
+
+    Returns
+    -------
+
+    """
+    h5c = image_tools.h5_iterative_creator(f2, overwrite_if_file_exists=True)
+    with h5py.File(f, 'r') as h:
+        x = h['frame_nums'][:]
+        for ii, (k1, k2) in enumerate(tqdm(loop_segments(x), total=len(x))):
+            new_imgs = image_tools.stack_imgs_lag(h['images'][k1:k2], buffer=2, shift_to_the_right_by=0)
+            h5c.add_to_h5(new_imgs, np.ones(new_imgs.shape[0]) * -1)
+
+    # copy over the other info from the OG h5 file
+    copy_h5_key_to_another_h5(f, f2, 'labels', 'labels')
+    copy_h5_key_to_another_h5(f, f2, 'frame_nums', 'frame_nums')
+
+
+def diff_lag_h5_maker(f3):
+    """
+    need to use the stack_lag_h5_maker first and then send a copy of that into this one again these program are only a temp
+    solution, if we use these methods for the main model then I will make using them more fluid and not depend on one another
+    Parameters
+    ----------
+    f3 : the file from stack_lag_h5_maker output
+
+    Returns
+    -------
+
+    """
+    # change color channel 0 and 1 to diff images from color channel 3 so color channels 0, 1, and 2 are 0-2, 1-2, and 2
+    with h5py.File(f3, 'r+') as h:
+        for i in tqdm(range(h['images'].shape[0])):
+            k = copy.deepcopy(h['images'][i])
+            for img_i in range(2):
+                k = k.astype(float)
+                a = k[:, :, img_i] - k[:, :, -1]
+                a = ((a + 255) / 2).astype(np.uint8)
+                h['images'][i, :, :, img_i] = a
+
+
+def expand_single_frame_to_3_color_h5(f, f2):
+    h5c = image_tools.h5_iterative_creator(f2, overwrite_if_file_exists=True)
+    with h5py.File(f, 'r') as h:
+        x = h['frame_nums'][:]
+        for ii, (k1, k2) in enumerate(tqdm(loop_segments(x), total=len(x))):
+            new_imgs = h['images'][k1:k2]
+            new_imgs = np.tile(new_imgs[:, :, :, None], 3)
+            h5c.add_to_h5(new_imgs, np.ones(new_imgs.shape[0]) * -1)
+
+    # copy over the other info from the OG h5 file
+    copy_h5_key_to_another_h5(f, f2, 'labels', 'labels')
+    copy_h5_key_to_another_h5(f, f2, 'frame_nums', 'frame_nums')
+
+
+def make_all_H5_types(base_dir_all_h5s):
+    def last_folder(f):
+        tmp1 = str(Path(f).parent.absolute())
+        return str(Path(tmp1).parent.absolute()) + os.sep
+
+    for f in get_h5s(base_dir_all_h5s):
+        base_f = last_folder(f)
+        basename = os.path.basename(f)[:-3] + '_regular.h5'
+        basedir = base_f + 'regular' + os.sep
+        if not os.path.isdir(basedir):
+            os.mkdir(basedir)
+        f2 = basedir + basename
+        expand_single_frame_to_3_color_h5(f, f2)
+
+        basename = os.path.basename(f)[:-3] + '_3lag.h5'
+        basedir = base_f + '3lag' + os.sep
+        if not os.path.isdir(basedir):
+            os.mkdir(basedir)
+        f2 = basedir + basename
+
+        stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0)
+
+        basename = os.path.basename(f2)[:-3] + '_diff.h5'
+        basedir = base_f + '3lag_diff' + os.sep
+        if not os.path.isdir(basedir):
+            os.mkdir(basedir)
+        f3 = basedir + basename
+        shutil.copy(f2, f3)
+        diff_lag_h5_maker(f3)
+
+
+def make_alt_labels_h5s(base_dir_all_h5s):
+    for f in get_h5s(base_dir_all_h5s):
+        basename = '_ALT_LABELS.'.join(os.path.basename(f).split('.'))
+        basedir = os.sep.join(f.split(os.sep)[:-2]) + os.sep + 'ALT_LABELS' + os.sep
+        if not os.path.isdir(basedir):
+            os.mkdir(basedir)
+        new_h5_name = basedir + basename
+
+        with h5py.File(f, 'r') as h:
+
+            x1 = copy.deepcopy(h['labels'][:])  # [0, 1]- (no touch, touch)
+
+            x2 = four_class_labels_from_binary(x1)  # [0, 1, 2, 3]- (no touch, touch, onset, offset)
+
+            x3 = copy.deepcopy(x2)
+            x3[x3 != 2] = 0
+            x3[x3 == 2] = 1  # [0, 1]- (not onset, onset)
+
+            x4 = copy.deepcopy(x2)  # [0, 1]- (not offset, offset)
+            x4[x4 != 3] = 0
+            x4[x4 == 3] = 1
+
+            x5 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
+            x5[x5 == 1] = 0
+            x5[x5 == 2] = 1
+            x5[x5 == 3] = 2
+
+            x6 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
+            onset_inds = x6[:-1]==2
+            bool_inds_one_after_onset = np.append(False, onset_inds)
+            offset_inds = x6[:-1]==3
+            bool_inds_one_after_offset = np.append(False, offset_inds)
+            offset_inds = x6==3
+            x6[bool_inds_one_after_onset] = 3
+            x6[offset_inds] = 4
+            x6[bool_inds_one_after_offset] = 5
+
+            # x6 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
+            #
+            # onset_inds = x6[:-1]==2
+            # bool_inds_one_after_onset = np.append(False, onset_inds)
+            # bool_inds_two_after_touch = np.append(False, bool_inds_one_after_onset[:-1])
+            #
+            # offset_inds = x6[:-1]==3
+            # bool_inds_one_after_offset = np.append(False, offset_inds)
+            # bool_inds_two_after_offset = np.append(False, bool_inds_one_after_offset[:-1])
+            #
+            # offset_inds = x6==3
+            # x6[bool_inds_one_after_onset] = 3
+            # x6[bool_inds_two_after_touch] = 4
+            # x6[offset_inds] = 5
+            # x6[bool_inds_one_after_offset] = 6
+            # x6[bool_inds_two_after_offset] = 7
+
+
+
+        with h5py.File(new_h5_name, 'w') as h:
+            h.create_dataset('[0, 1]- (no touch, touch)', shape=np.shape(x1), data=x1)
+            h.create_dataset('[0, 1, 2, 3]- (no touch, touch, onset, offset', shape=np.shape(x2), data=x2)
+            h.create_dataset('[0, 1]- (not onset, onset)', shape=np.shape(x3), data=x3)
+            h.create_dataset('[0, 1]- (not offset, offset)', shape=np.shape(x4), data=x4)
+            h.create_dataset('[0, 1, 2]- (no event, onset, offset)', shape=np.shape(x5), data=x5)
+            h.create_dataset('[0, 1, 2, 3, 4, 5]- (no touch, touch, onset, one after onset, offset, one after offset)', shape=np.shape(x6), data=x6)

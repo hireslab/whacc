@@ -209,7 +209,7 @@ def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, 
                     h5_creators[i] = h5_iterative_creator(final_names[-1],
                                                           overwrite_if_file_exists=True,
                                                           close_and_open_on_each_iteration=True,
-                                                          color_channel = color_channel)
+                                                          color_channel=color_channel)
                 ims = []
                 labels = []
                 for ii in tqdm(sorted(random_frame_inds[i]), disable=disable_TQDM, total=total_frames, initial=cnt1):
@@ -221,9 +221,13 @@ def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, 
                         ims = []
                         labels = []
                 h5_creators[i].add_to_h5(np.asarray(ims), np.asarray(labels))
-                with h5py.File(h5_creators[i].h5_full_file_name, 'r+') as h:
-                    frame_nums = list_of_new_frame_nums[i]
-                    h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
+                with h5py.File(h5_creators[i].h5_full_file_name, 'r+') as h2: # wanted to do this to allow NONE as input and still have frame nums, but I need to have an append after creating and its a pain
+                    frame_nums = np.asarray(list_of_new_frame_nums[i])
+                    if 'frame_nums' not in h2.keys():
+                        h2.create_dataset('frame_nums', shape=np.shape(frame_nums), maxshape=(None,), chunks=True, data=frame_nums)
+                    else:
+                        h2['frame_nums'].resize(h2['frame_nums'].shape[0] + frame_nums.shape[0], axis=0)
+                        h2['frame_nums'][-frame_nums.shape[0]:] = frame_nums
     # # add the frame info to each
     # for i, frame_nums in enumerate(list_of_new_frame_nums):
     #     with h5py.File(h5_creators[i].h5_full_file_name, 'r+') as h:

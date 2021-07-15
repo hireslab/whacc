@@ -279,7 +279,7 @@ def get_model_list(model_save_dir):
     return model_2_load_all
 
 
-def get_files(base_dir, search_term):
+def get_files(base_dir, search_term = ''):
     """
 
     Parameters
