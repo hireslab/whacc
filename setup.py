@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='whacc',
-      version='0.0.41',
+      version='0.0.47',
       author="Phillip Maire",
       license='MIT',
       description='largely automatic and customizable pipeline for creating a CNN to predict whiskers contacting objects',

@@ -162,12 +162,13 @@ def basic_callbacks(save_checkpoint_filepath, monitor='val_loss', patience=10,
     return callbacks
 
 
+
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$      make/setup data     $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 
 info_dict = dict()
 all_models_directory = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/"  # DETERMINES location for all model you will run
 # info_dict['test_data_dir'] =
-test_data_dir = '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/test_data/small_h5s/'  # DETERMINES location for test data (folder determined by the "image_source_h5_directory_ending" variable)
+test_data_dir =        '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/test_data/small_h5s/'  # DETERMINES location for test data (folder determined by the "image_source_h5_directory_ending" variable)
 
 # '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/test_data'
 
