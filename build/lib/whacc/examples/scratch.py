@@ -96,4 +96,5 @@ h5_file_list2 = utils.lister_it(h5_file_list, remove_string=['subset', 'temp', '
 print(h5_file_list2)
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    for k in range(0, 1163998, 40000):
 

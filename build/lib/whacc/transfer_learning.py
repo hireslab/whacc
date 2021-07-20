@@ -172,6 +172,7 @@ class save_and_plot_history(keras.callbacks.Callback):
                 display.clear_output(wait=True)
                 for kmark, kcol, k in zip(self.markers, self.color, self.plot_metric_inds):
                     plt.plot(self.all_logs[:, k], color=kcol, linestyle=kmark)
+
                 plt.legend(self.logs_names_selected)
                 plt.grid(True)
                 display.display(plt.gcf())

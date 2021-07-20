@@ -23,10 +23,11 @@ def four_class_labels_from_binary(x):
     return c
 
 
-def print_h5_keys(h5file, return_list = False):
+def print_h5_keys(h5file, return_list=False, do_print=True):
     with h5py.File(h5file, 'r') as h:
         x = copy.deepcopy(list(h.keys()))
-        print_list_with_inds(x)
+        if do_print:
+            print_list_with_inds(x)
         if return_list:
             return x
 
