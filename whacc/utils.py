@@ -87,7 +87,8 @@ def plot_pole_tracking_max_vals(h5_file):
         for i, k in enumerate(hf['max_val_stack'][:]):
             plt.plot()
 
-def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type = False, end_prev_len = 40):
+
+def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type=False, end_prev_len=40):
     names = []
     type_to_print = []
     for k in dir(c):
@@ -114,15 +115,16 @@ def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_n
         k1 = (k1 + len_space)[:len(len_space)]
         k2 = (k2 + len_space_type)[:len(len_space_type)]
         if len(k3) > end_prev_len:
-          k3 = '...' + k3[-end_prev_len:]
+            k3 = '...' + k3[-end_prev_len:]
         else:
-          k3 = '> ' + k3[-end_prev_len:]
+            k3 = '> ' + k3[-end_prev_len:]
 
         print(k1 + ' type->   ' + k2 + '  ' + k3)
     if return_name_and_type:
         return names, type_to_print
 
-def get_dict_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type = False, end_prev_len = 40):
+
+def get_dict_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type=False, end_prev_len=40):
     names = []
     type_to_print = []
     for k in c.keys():
@@ -148,13 +150,14 @@ def get_dict_info(c, sort_by_type=True, include_underscore_vars=False, return_na
         k1 = (k1 + len_space)[:len(len_space)]
         k2 = (k2 + len_space_type)[:len(len_space_type)]
         if len(k3) > end_prev_len:
-          k3 = '...' + k3[-end_prev_len:]
+            k3 = '...' + k3[-end_prev_len:]
         else:
-          k3 = '> ' + k3[-end_prev_len:]
+            k3 = '> ' + k3[-end_prev_len:]
 
         print(k1 + ' type->   ' + k2 + '  ' + k3)
     if return_name_and_type:
         return names, type_to_print
+
 
 def group_consecutives(vals, step=1):
     """
@@ -198,7 +201,7 @@ def group_consecutives(vals, step=1):
     return result, result_ind
 
 
-def get_h5s(base_dir, print_h5_list = True):
+def get_h5s(base_dir, print_h5_list=True):
     """
 
     Parameters
@@ -321,7 +324,7 @@ def get_model_list(model_save_dir):
     return model_2_load_all
 
 
-def get_files(base_dir, search_term = ''):
+def get_files(base_dir, search_term=''):
     """
 
     Parameters
@@ -801,20 +804,20 @@ def make_alt_labels_h5s(base_dir_all_h5s):
             x5[x5 == 3] = 2
 
             x6 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
-            onset_inds = x6[:-1]==2
+            onset_inds = x6[:-1] == 2
             bool_inds_one_after_onset = np.append(False, onset_inds)
-            offset_inds = x6[:-1]==3
+            offset_inds = x6[:-1] == 3
             bool_inds_one_after_offset = np.append(False, offset_inds)
-            offset_inds = x6==3
+            offset_inds = x6 == 3
             x6[bool_inds_one_after_onset] = 3
             x6[offset_inds] = 4
             x6[bool_inds_one_after_offset] = 5
 
             x7 = copy.deepcopy(x6)
-            x7[x7==2] = 0
-            x7[x7==5] = 0
-            x7[x7==3] = 2
-            x7[x7==4] = 3
+            x7[x7 == 2] = 0
+            x7[x7 == 5] = 0
+            x7[x7 == 3] = 2
+            x7[x7 == 4] = 3
 
             # x6 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
             #
@@ -833,13 +836,16 @@ def make_alt_labels_h5s(base_dir_all_h5s):
             # x6[bool_inds_one_after_offset] = 6
             # x6[bool_inds_two_after_offset] = 7
 
-
-
         with h5py.File(new_h5_name, 'w') as h:
             h.create_dataset('[0, 1]- (no touch, touch)', shape=np.shape(x1), data=x1)
             h.create_dataset('[0, 1, 2, 3]- (no touch, touch, onset, offset', shape=np.shape(x2), data=x2)
             h.create_dataset('[0, 1]- (not onset, onset)', shape=np.shape(x3), data=x3)
             h.create_dataset('[0, 1]- (not offset, offset)', shape=np.shape(x4), data=x4)
             h.create_dataset('[0, 1, 2]- (no event, onset, offset)', shape=np.shape(x5), data=x5)
-            h.create_dataset('[0, 1, 2, 3, 4, 5]- (no touch, touch, onset, one after onset, offset, one after offset)', shape=np.shape(x6), data=x6)
+            h.create_dataset('[0, 1, 2, 3, 4, 5]- (no touch, touch, onset, one after onset, offset, one after offset)',
+                             shape=np.shape(x6), data=x6)
             h.create_dataset('[0, 1, 2, 3]- (no touch, touch, one after onset, offset)', shape=np.shape(x7), data=x7)
+
+
+def intersect_lists(d):
+    return list(set(d[0]).intersection(*d))
