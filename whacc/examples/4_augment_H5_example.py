@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from imgaug import augmenters as iaa  # optional program to further augment data
-
+'*remove_2_edges.h5'
 h5_subset_file = '/Users/phil/Dropbox/Autocurator/data/samsons_subsets/use/train_and_validate/validation_set.h5'
 # datagen = ImageDataGenerator(rotation_range=360,  #
 #                              width_shift_range=.05,  #

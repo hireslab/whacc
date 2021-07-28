@@ -8,7 +8,9 @@ setup.py
 ./whacc/__init__.py
 ./whacc/analysis.py
 ./whacc/image_tools.py
+./whacc/model_maker.py
 ./whacc/pole_tracker.py
+./whacc/run_in_terminal_template.py
 ./whacc/subset_h5_generator.py
 ./whacc/touch_curation_GUI.py
 ./whacc/transfer_learning.py
@@ -16,6 +18,7 @@ setup.py
 ./whacc/__pycache__/__init__.cpython-38.pyc
 ./whacc/__pycache__/analysis.cpython-38.pyc
 ./whacc/__pycache__/image_tools.cpython-38.pyc
+./whacc/__pycache__/model_maker.cpython-38.pyc
 ./whacc/__pycache__/pole_tracker.cpython-38.pyc
 ./whacc/__pycache__/subset_h5_generator.cpython-38.pyc
 ./whacc/__pycache__/touch_curation_GUI.cpython-38.pyc
@@ -45,7 +48,9 @@ setup.py
 whacc/__init__.py
 whacc/analysis.py
 whacc/image_tools.py
+whacc/model_maker.py
 whacc/pole_tracker.py
+whacc/run_in_terminal_template.py
 whacc/subset_h5_generator.py
 whacc/touch_curation_GUI.py
 whacc/transfer_learning.py

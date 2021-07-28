@@ -79,7 +79,8 @@ def label_naming_shorthand_dict(name_key=None):
         '[0, 1, 2]- (no event, onset, offset)': 'only_on-off_set',
         '[0, 1]- (no touch, touch)': 'regular',
         '[0, 1]- (not offset, offset)': 'only_offset',
-        '[0, 1]- (not onset, onset)': 'only_onset'}
+        '[0, 1]- (not onset, onset)': 'only_onset',
+        '[0, 1, 2, 3]- (no touch, touch, one after onset, offset)': 'overlap_whisker_on-off'}
     if name_key is None:
         return label_naming_shorthand_dict
     else:
@@ -187,7 +188,7 @@ epochs = 5000  # DETERMINES how many epochs the model trains for if early stoppi
 batch_size = 1000  # DETERMINES number of images per batch
 
 label_key_name_list = label_naming_shorthand_dict()  # get a list of label key names... they are really long to be specific
-utils.print_list_with_inds(label_key_name_list)  # print them, then below use their index to choose them
+utils.print_list_with_inds(label_key_name_list, )  # print them, then below use their index to choose them
 label_key_name = list(label_key_name_list.keys())[
     0]  # DETERMINES THE LABEL SOURCE choose the ind based on the print out
 

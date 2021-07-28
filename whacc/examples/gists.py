@@ -280,6 +280,24 @@ for bd in bd_all:
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$  make a final combination of the the aug and other files    $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 
+def label_naming_shorthand_dict(name_key=None):
+    label_naming_shorthand_dict = {
+        '[0, 1, 2, 3, 4, 5]- (no touch, touch, onset, one after onset, offset, one after offset)': 'on-off_set_and_one_after',
+        '[0, 1, 2, 3]- (no touch, touch, onset, offset': 'on-off_set',
+        '[0, 1, 2]- (no event, onset, offset)': 'only_on-off_set',
+        '[0, 1]- (no touch, touch)': 'regular',
+        '[0, 1]- (not offset, offset)': 'only_offset',
+        '[0, 1]- (not onset, onset)': 'only_onset',
+        '[0, 1, 3, 4]- (no touch, touch, one after onset, offset)': 'overlap_whisker_on-off'}
+    if name_key is None:
+        return label_naming_shorthand_dict
+    else:
+        return label_naming_shorthand_dict[name_key]
+def copy_over_new_labels(label_key_name, image_h5_list, label_h5_list):
+    label_key_shorthand = label_naming_shorthand_dict(label_key_name)
+    for img_src, lab_src in zip(image_h5_list, label_h5_list):
+        utils.copy_h5_key_to_another_h5(lab_src, img_src, label_key_name, 'labels')
+
 from whacc import image_tools
 from whacc import utils
 bd_all = ['/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/for_aug/regular/',
@@ -289,6 +307,17 @@ bd_all = ['/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDat
 to_combine = ['/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/regular_80_border/data/regular',
               '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/regular_80_border/data/3lag_diff/',
               '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/regular_80_border/data/3lag/']
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+""" make sure the labels are regular before combining them with the aug set"""
+k = '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/regular_80_border/data/ALT_LABELS'
+alt_labels = utils.get_files(k, '*.h5')
+
+for k in to_combine:
+    a = utils.get_files(k, '*.h5')
+    a = utils.lister_it(a, remove_string = 'zip')
+    print(a)
+    copy_over_new_labels('[0, 1]- (no touch, touch)', a, alt_labels)
 
 for bd, cmb in zip(bd_all, to_combine):
     l1 = utils.get_files(bd, '*train*')
@@ -302,6 +331,31 @@ for bd, cmb in zip(bd_all, to_combine):
     l2 = utils.lister_it(l2, remove_string = 'zip')
     image_tools.split_h5_loop_segments(l1+l2, [1], [bd+'val_all'], chunk_size=1000, add_numbers_to_name=False,
                  disable_TQDM=False, set_seed = 0, color_channel=True)
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$# finally after copying them to this directory we can make the labels with any of the data directories$$$$$$$"""
+# be careful with this cause if the regular frames is not the normal one then your labels will be all screwed up
+# need to run below code above first
+'''
+for k in to_combine:
+    a = utils.get_files(k, '*.h5')
+    a = utils.lister_it(a, remove_string = 'zip')
+    print(a)
+    copy_over_new_labels('[0, 1]- (no touch, touch)', a, alt_labels)
+'''
+utils.make_alt_labels_h5s('/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/regular_80_border_aug_0_to_9/data/regular')
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$# update all the labels in case you create a new label """
+utils.make_alt_labels_h5s('/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/small_h5s/data/single_frame')
+utils.make_alt_labels_h5s('/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all_models/regular_80_border/data/single_frame')
+utils.make_alt_labels_h5s('/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/test_data/small_h5s/single_frame')
+utils.make_alt_labels_h5s('/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/test_data/10_percent_holy_set/single_frame')
+utils.make_alt_labels_h5s('/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/test_data/full_holy_set/single_frame')
 
 """
 USE THIS AFTER CREATING AUG IMAGES TO TRANSFER FRAME NUMS
@@ -412,3 +466,30 @@ xx = '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/model_testing/all_data/all
 a = analysis.pole_plot(xx)
 a.plot_it()
 fn = image_tools.get_h5_key_and_concatenate([xx], 'frame_nums')
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$  transfer all model and folders form google cloud machine to google bucket  $$$$$$$$$$$$$$$$$$$$$$$$"""
+
+from google.cloud import storage # !pip install --upgrade google-cloud-storage
+import os
+from whacc import utils
+%cd "/home/jupyter"
+
+client = storage.Client()
+storage_client = storage.Client.from_service_account_json('phils-whisker-contacts-7eea4efe3802.json')
+bucket = client.get_bucket('whacc_multi_model_test_data')
+
+def transfer_data(bucket):
+    blobs=list(bucket.list_blobs(prefix='SAVED_MODELS'))
+    cloud_folders = list(set([os.path.dirname(str(k.name)) for k in blobs]))
+    a = utils.get_files('model_testing', '*info_dict.json')
+    for k in a:
+        to_copy = os.path.dirname(k)
+        if not any([to_copy in kk for kk in cloud_folders]):
+            print(to_copy)
+            dest = 'gs://whacc_multi_model_test_data/'+'SAVED_MODELS/'+to_copy
+            !gsutil -m cp -r $to_copy $dest
+transfer_data(bucket)
