@@ -126,6 +126,9 @@ class pole_plot():
 
         a.plot_it()
         """
+        if true_val is None:
+            if 'labels' in utils.print_h5_keys(img_h5_file, return_list=True, do_print=False):
+                true_val = image_tools.get_h5_key_and_concatenate([img_h5_file])
         self.isnotebook = utils.isnotebook()
         self.img_h5_file = img_h5_file
         self.pred_val = np.asarray(pred_val)
