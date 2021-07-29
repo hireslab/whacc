@@ -272,3 +272,58 @@ class error_analysis():
             X.append(x)
 
         return R, P, X, group_inds
+
+
+def name_filt(all_data, filt_string):
+    keep_filt = []
+    all_data[0].keys()
+    for k in range(len(all_data)):
+        if filt_string in all_data[k]['full_name']:
+            keep_filt.append(k)
+
+    return keep_filt
+
+
+def name_filt_remove(all_data, filt_string):
+    keep_filt = []
+    all_data[0].keys()
+    for k in range(len(all_data)):
+        if filt_string not in all_data[k]['full_name']:
+            keep_filt.append(k)
+
+    return keep_filt
+
+
+def performance_filter(all_data, key_name, greater_than=.8, less_than_or_qual_to=1):
+    keep_filt = []
+    for i, a in enumerate(all_data):
+        log_ind = np.where(key_name == a['logs_names'])[0][0]
+        val_list = a['all_logs'][:, log_ind]
+        test1 = np.logical_and(val_list > greater_than, val_list <= less_than_or_qual_to).any()
+        if test1:
+            keep_filt.append(i)
+    return keep_filt
+
+
+def plot_acc(all_data, all_keep_filt, figsize = [10, 10]):
+    all_leg = []
+    plt.figure(figsize=figsize)
+    all_colors = []
+    for i in all_keep_filt:
+        a = all_data[i]
+        key_name = 'acc_val'
+        log_ind = np.where(key_name == a['logs_names'])[0][0]
+
+        p = plt.plot(a['all_logs'][:, log_ind])
+        all_colors.append(p[0].get_color())
+        all_leg.append(a['full_name'] + '_val')
+
+        key_name = 'acc_test'
+        log_ind = np.where(key_name == a['logs_names'])[0][0]
+        plt.plot(a['all_logs'][:, log_ind], '--', color=all_colors[-1])
+        all_leg.append(a['full_name'] + '_test')
+
+    plt.ylim([.8, 1])
+    plt.legend(all_leg)
+    plt.ylabel('Accuracy', fontsize=22)
+    plt.xlabel('Epochs', fontsize=22)
