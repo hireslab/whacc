@@ -114,7 +114,7 @@ class basic_metrics():
 
 
 class pole_plot():
-    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5, len_plot=10, current_frame=0):
+    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5, len_plot=10, current_frame=0, figsize = [10, 10]):
         """
         Examples
         ________
@@ -136,7 +136,17 @@ class pole_plot():
         self.threshold = threshold
         self.len_plot = len_plot
         self.current_frame = current_frame
+        self.figsize = figsize
         self.fig_created = False
+        try:
+            tmp3 = np.unique(np.concatenate((self.pred_val, self.true_val)))
+            self.range_labels = list(range([np.nanmin(tmp3), np.nanmax(tmp3)+1]))
+            self.ylims = [np.nanmin(tmp3)-.5, np.nanmax(tmp3)+.5]
+        except:
+            self.range_labels = [0,1]
+            self.ylims = [-.5, 1.5]
+            
+
         try:
             self.pred_val_bool = (1 * (self.pred_val > threshold)).flatten()
         except:
@@ -145,14 +155,14 @@ class pole_plot():
     def plot_it(self):
 
         if self.fig_created is False or self.isnotebook:  # we need to create a new fig every time if we are in colab or jupyter
-            self.fig, self.axs = plt.subplots(2)
+            self.fig, self.axs = plt.subplots(2, figsize=self.figsize)
             self.fig_created = True
+            plt.subplots_adjust(hspace = .001)
         self.axs[0].clear()
         self.axs[1].clear()
         self.fig.suptitle('Touch prediction')
         s1 = self.current_frame
         s2 = self.current_frame + self.len_plot
-
         # plt.axis('off')
         with h5py.File(self.img_h5_file, 'r') as h:
             self.current_imgs = image_tools.img_unstacker(h['images'][s1:s2], s2 - s1)
@@ -163,19 +173,24 @@ class pole_plot():
         if len(self.pred_val.shape) != 0:
             plt.plot(self.pred_val[s1:s2].flatten(), 'k-')
             leg.append('pred')
-        if len(self.pred_val_bool.shape) != 0:
-            plt.plot(self.pred_val_bool[s1:s2].flatten(), '.g', markersize=10)
-            leg.append('bool_pred')
+        # if len(self.pred_val_bool.shape) != 0:
+        #     plt.plot(self.pred_val_bool[s1:s2].flatten(), '.g', markersize=10)
+        #     leg.append('bool_pred')
         if len(self.true_val.shape) != 0:
             tmp1 = self.true_val[s1:s2].flatten()
             plt.scatter(range(len(tmp1)), tmp1, s=80, facecolors='none', edgecolors='r')
             leg.append('actual')
         if leg:
             plt.legend(leg, )
-            plt.ylim([-.2, 1.2])
+            plt.ylim(self.ylims)
+            # plt.ylim([-.2, 1.2])
 
     def next(self):
         self.current_frame = self.current_frame + self.len_plot
+        self.plot_it()
+
+    def move(self, move_val):
+        self.current_frame = self.current_frame + move_val
         self.plot_it()
 
 
@@ -272,3 +287,58 @@ class error_analysis():
             X.append(x)
 
         return R, P, X, group_inds
+
+
+def name_filt(all_data, filt_string):
+    keep_filt = []
+    all_data[0].keys()
+    for k in range(len(all_data)):
+        if filt_string in all_data[k]['full_name']:
+            keep_filt.append(k)
+
+    return keep_filt
+
+
+def name_filt_remove(all_data, filt_string):
+    keep_filt = []
+    all_data[0].keys()
+    for k in range(len(all_data)):
+        if filt_string not in all_data[k]['full_name']:
+            keep_filt.append(k)
+
+    return keep_filt
+
+
+def performance_filter(all_data, key_name, greater_than=.8, less_than_or_qual_to=1):
+    keep_filt = []
+    for i, a in enumerate(all_data):
+        log_ind = np.where(key_name == a['logs_names'])[0][0]
+        val_list = a['all_logs'][:, log_ind]
+        test1 = np.logical_and(val_list > greater_than, val_list <= less_than_or_qual_to).any()
+        if test1:
+            keep_filt.append(i)
+    return keep_filt
+
+
+def plot_acc(all_data, all_keep_filt, figsize = [15, 10]):
+    all_leg = []
+    plt.figure(figsize=figsize)
+    all_colors = []
+    for i in all_keep_filt:
+        a = all_data[i]
+        key_name = 'acc_val'
+        log_ind = np.where(key_name == a['logs_names'])[0][0]
+
+        p = plt.plot(a['all_logs'][:, log_ind])
+        all_colors.append(p[0].get_color())
+        all_leg.append(a['full_name'] + '_val')
+
+        key_name = 'acc_test'
+        log_ind = np.where(key_name == a['logs_names'])[0][0]
+        plt.plot(a['all_logs'][:, log_ind], '--', color=all_colors[-1])
+        all_leg.append(a['full_name'] + '_test')
+
+    plt.ylim([.8, 1])
+    plt.legend(all_leg)
+    plt.ylabel('Accuracy', fontsize=22)
+    plt.xlabel('Epochs', fontsize=22)
