@@ -170,7 +170,7 @@ def basic_callbacks(save_checkpoint_filepath, monitor='val_loss', patience=10,
 
 
 def unzip_and_place_h5s(bd, do_delete_zips=False):
-    bd 2 = ''.join(bd.split('gdrive/My Drive'))
+    bd2 = ''.join(bd.split('gdrive/My Drive'))
     shutil.copytree(bd, bd2)
     a = utils.get_files(bd2, '*.zip')
     for k in a:
@@ -181,12 +181,12 @@ def unzip_and_place_h5s(bd, do_delete_zips=False):
 
 
 def change_to_local_dir(bd):
-    bd 2 = ''.join(bd.split('gdrive/My Drive'))
+    bd2 = ''.join(bd.split('gdrive/My Drive'))
     return bd2
 
 
 def change_to_gdrive_dir(bd):
-    bd 2 = '/content/gdrive/My Drive/'.join(bd.split('/content/'))
+    bd2 = '/content/gdrive/My Drive/'.join(bd.split('/content/'))
     return bd2
 
 
@@ -268,19 +268,59 @@ def re_build_model(model_name_str, class_numbers, base_learning_rate=0.00001, dr
     else:
         return model
 
-def reload_info(base_dir):
-  s = os.sep
-  b = base_dir.split('all_models'+s)[-1].split(s)
-  reload_dict = {'data_type':b[0],
-                'model_name':b[1],
-                'img_type':b[2],
-                'label_name_shorthand':b[3],
-                'date_string':b[4]}
 
-  label_name_dict = label_naming_shorthand_dict()
-  for k in label_name_dict.keys():
-    if reload_dict['label_name_shorthand'] == label_name_dict[k]:
-      reload_dict['label_type'] = k
-      class_numbers = eval(k.split('- ')[0])
-  reload_dict['class_numbers'] = class_numbers
-  return reload_dict
+def reload_info_dict(base_dir):
+    info_dict_path = utils.get_files(base_dir, '*info_dict.json')[0]
+    with open(info_dict_path, 'r') as f:
+        D = json.load(f)
+    # replace the directory to the main directory
+    x = 'model_testing'
+    old_base_dir = ''
+    for k in D.keys():
+        try:
+            if x in D[k]:
+                D[k] = base_dir.split(x)[0] + x + D[k].split(x)[-1]
+                old_base_dir = D[k].split(x)[0]
+        except:
+            pass
+    D['old_base_dir'] = old_base_dir
+    D['checkpoints'] = utils.get_files(D['model_save_dir_checkpoints'], '*hdf5')
+    return D
+
+
+def load_model_data(all_models_directory):
+    data_files = utils.get_files(all_models_directory, '*model_eval_each_epoch.json')
+    to_split = '/content/gdrive/My Drive/colab_data2/model_testing/all_data/all_models/'
+    all_data = []
+    for i, k in enumerate(data_files):
+        if '/small_h5s/' not in k:
+            with open(k, 'r') as f:
+                a = json.load(f)
+            a['all_logs'] = np.asarray(a['all_logs'])
+            new_log_names = []
+            for k2 in a['logs_names']:
+                new_log_names.append(k2.split('bool_')[-1])
+            a['logs_names'] = new_log_names
+            a['logs_names'] = np.asarray(a['logs_names'])
+
+            k.split(to_split)[-1]
+            a['full_name'] = '__'.join(' '.join(k.split(to_split)[-1].split('/2021')[0].split('_')).split('/'))
+            a['dir'] = os.path.dirname(k)
+            all_data.append(a)
+    return all_data
+# def reload_info(base_dir):
+#   s = os.sep
+#   b = base_dir.split('all_models'+s)[-1].split(s)
+#   reload_dict = {'data_type':b[0],
+#                 'model_name':b[1],
+#                 'img_type':b[2],
+#                 'label_name_shorthand':b[3],
+#                 'date_string':b[4]}
+#
+#   label_name_dict = label_naming_shorthand_dict()
+#   for k in label_name_dict.keys():
+#     if reload_dict['label_name_shorthand'] == label_name_dict[k]:
+#       reload_dict['label_type'] = k
+#       class_numbers = eval(k.split('- ')[0])
+#   reload_dict['class_numbers'] = class_numbers
+#   return reload_dict
