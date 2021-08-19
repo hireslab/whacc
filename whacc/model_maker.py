@@ -1,4 +1,5 @@
-from whacc import utils, image_tools, transfer_learning, analysis
+from whacc import utils, transfer_learning
+
 import matplotlib.pyplot as plt
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.models import Model
