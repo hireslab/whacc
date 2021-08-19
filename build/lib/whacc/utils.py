@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 import copy
-
-from whacc import image_tools
+import time
+from whacc import image_tools, model_maker
 
 
 def four_class_labels_from_binary(x):
@@ -128,14 +128,14 @@ def get_dict_info(c, sort_by_type=True, include_underscore_vars=False, return_na
     names = []
     type_to_print = []
     for k in c.keys():
-        if include_underscore_vars is False and k[0] != '_':
+        if include_underscore_vars is False and str(k)[0] != '_':
             tmp1 = str(type(c[k]))
             type_to_print.append(tmp1.split("""'""")[-2])
-            names.append(k)
+            names.append(str(k))
         elif include_underscore_vars:
             tmp1 = str(type(c[k]))
             type_to_print.append(tmp1.split("""'""")[-2])
-            names.append(k)
+            names.append(str(k))
     len_space = ' ' * max(len(k) for k in names)
     len_space_type = ' ' * max(len(k) for k in type_to_print)
     if sort_by_type:
@@ -146,7 +146,10 @@ def get_dict_info(c, sort_by_type=True, include_underscore_vars=False, return_na
     for i in ind_array:
         k1 = names[i]
         k2 = type_to_print[i]
-        k3 = str(c[names[i]])
+        try:
+            k3 = str(c[names[i]])
+        except:
+            k3 = str(c[float(names[i])])
         k1 = (k1 + len_space)[:len(len_space)]
         k2 = (k2 + len_space_type)[:len(len_space_type)]
         if len(k3) > end_prev_len:
@@ -718,7 +721,6 @@ def diff_lag_h5_maker(f3):
 
     Returns
     -------
-
     """
     # change color channel 0 and 1 to diff images from color channel 3 so color channels 0, 1, and 2 are 0-2, 1-2, and 2
     with h5py.File(f3, 'r+') as h:
@@ -741,8 +743,50 @@ def expand_single_frame_to_3_color_h5(f, f2):
             h5c.add_to_h5(new_imgs, np.ones(new_imgs.shape[0]) * -1)
 
     # copy over the other info from the OG h5 file
-    copy_h5_key_to_another_h5(f, f2, 'labels', 'labels')
-    copy_h5_key_to_another_h5(f, f2, 'frame_nums', 'frame_nums')
+    copy_over_all_non_image_keys(f, f2)
+    # copy_h5_key_to_another_h5(f, f2, 'labels', 'labels')
+    # copy_h5_key_to_another_h5(f, f2, 'frame_nums', 'frame_nums')
+
+
+def copy_over_all_non_image_keys(f, f2):
+    k_names = print_h5_keys(f, return_list=True, do_print=False)
+    k_names = lister_it(k_names, remove_string='MODEL_')
+    k_names = lister_it(k_names, remove_string='images')
+    with h5py.File(f, 'r+') as h:
+        for kn in k_names:
+            try:
+                copy_h5_key_to_another_h5(f, f2, kn, kn)
+            except:
+                del h[kn]
+                time.sleep(2)
+                copy_h5_key_to_another_h5(f, f2, kn, kn)
+    if 'frame_nums' not in k_names and 'trial_nums_and_frame_nums' in k_names:
+        tnfn = image_tools.get_h5_key_and_concatenate([f], 'trial_nums_and_frame_nums')
+        with h5py.File(f2, 'r+') as h:
+            try:
+                h.create_dataset('frame_nums', data=(tnfn[1, :]).astype(int))
+            except:
+                del h['frame_nums']
+                time.sleep(2)
+                h.create_dataset('frame_nums', data=(tnfn[1, :]).astype(int))
+
+
+def reduce_to_single_frame_from_color(f, f2):
+    h5c = image_tools.h5_iterative_creator(f2, overwrite_if_file_exists=True, color_channel=False)
+    with h5py.File(f, 'r') as h:
+        try:
+            x = h['trial_nums_and_frame_nums'][1, :]
+        except:
+            x = h['frame_nums'][:]
+        for ii, (k1, k2) in enumerate(tqdm(loop_segments(x), total=len(x))):
+            new_imgs = h['images'][k1:k2][..., -1]
+            # new_imgs = np.tile(new_imgs[:, :, :, None], 3)
+            h5c.add_to_h5(new_imgs, np.ones(new_imgs.shape[0]) * -1)
+
+    # copy over the other info from the OG h5 file
+    copy_over_all_non_image_keys(f, f2)
+    # copy_h5_key_to_another_h5(f, f2, 'labels', 'labels')
+    # copy_h5_key_to_another_h5(f, f2, 'frame_nums', 'frame_nums')
 
 
 def make_all_H5_types(base_dir_all_h5s):
@@ -774,6 +818,51 @@ def make_all_H5_types(base_dir_all_h5s):
         f3 = basedir + basename
         shutil.copy(f2, f3)
         diff_lag_h5_maker(f3)
+
+
+def get_all_label_types_from_array(array):
+    all_labels = []
+    x1 = copy.deepcopy(array)  # [0, 1]- (no touch, touch)
+    all_labels.append(x1)
+
+    x2 = four_class_labels_from_binary(x1)  # [0, 1, 2, 3]- (no touch, touch, onset, offset)
+    all_labels.append(x2)
+
+    x3 = copy.deepcopy(x2)
+    x3[x3 != 2] = 0
+    x3[x3 == 2] = 1  # [0, 1]- (not onset, onset)
+    all_labels.append(x3)
+
+    x4 = copy.deepcopy(x2)  # [0, 1]- (not offset, offset)
+    x4[x4 != 3] = 0
+    x4[x4 == 3] = 1
+    all_labels.append(x4)
+
+    x5 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
+    x5[x5 == 1] = 0
+    x5[x5 == 2] = 1
+    x5[x5 == 3] = 2
+    all_labels.append(x5)
+
+    x6 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
+    onset_inds = x6[:-1] == 2
+    bool_inds_one_after_onset = np.append(False, onset_inds)
+    offset_inds = x6[:-1] == 3
+    bool_inds_one_after_offset = np.append(False, offset_inds)
+    offset_inds = x6 == 3
+    x6[bool_inds_one_after_onset] = 3
+    x6[offset_inds] = 4
+    x6[bool_inds_one_after_offset] = 5
+    all_labels.append(x6)
+
+    x7 = copy.deepcopy(x6)
+    x7[x7 == 2] = 0
+    x7[x7 == 5] = 0
+    x7[x7 == 3] = 2
+    x7[x7 == 4] = 3
+    all_labels.append(x7)
+
+    return np.asarray(all_labels)
 
 
 def make_alt_labels_h5s(base_dir_all_h5s):
@@ -849,3 +938,95 @@ def make_alt_labels_h5s(base_dir_all_h5s):
 
 def intersect_lists(d):
     return list(set(d[0]).intersection(*d))
+
+
+def get_in_range(H5_list, pole_up_add=200, pole_down_add=0, write_to_h5=True, return_in_range=False):
+    all_in_range = []
+    for k in H5_list:
+        with h5py.File(k, 'r+') as hf:
+            new_in_range = np.zeros_like(hf['in_range'][:])
+            fn = hf['trial_nums_and_frame_nums'][1, :]
+            for i, (i1, i2) in enumerate(loop_segments(fn)):
+                x = hf['pole_times'][:, i] + i1
+                x1 = x[0] + pole_up_add
+                x2 = x[1] + pole_down_add
+                x2 = min([x2, i2])
+                new_in_range[x1:x2] = 1
+            if write_to_h5:
+                hf['in_range'][:] = new_in_range
+            if return_in_range:
+                all_in_range.append(new_in_range)
+    if return_in_range:
+        return all_in_range
+
+
+def add_to_h5(h5_file, key, values, overwrite_if_exists=False):
+    all_keys = print_h5_keys(h5_file, return_list=True, do_print=False)
+    with h5py.File(h5_file, 'r+') as h:
+        if key in all_keys and overwrite_if_exists:
+            print('key already exists, overwriting value...')
+            del h[key]
+            h.create_dataset(key, data=values)
+        elif key in all_keys and not overwrite_if_exists:
+            print("""key already exists, NOT overwriting value..., \nset 'overwrite_if_exists' to True to overwrite""")
+        else:
+            h.create_dataset(key, data=values)
+
+
+def bool_pred_to_class_pred_formating(pred):
+    pred = pred.flatten()
+    zero_pred = np.ones_like(pred) - pred
+    x = np.vstack((zero_pred, pred)).T
+    return x
+
+
+def convert_labels_back_to_binary(a, key):
+    """
+  a is 'bool' array (integers not float predicitons)
+  key is the key name of the type of labels being inserted
+  can use the key name or the string in the key either will do.
+
+  Examples
+  ________
+    tmp2 = list(model_maker.label_naming_shorthand_dict().keys())
+    tmp3 = get_all_label_types_from_array(np.asarray([0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0]))
+    for a, key in zip(tmp3, tmp2):
+        print(convert_labels_back_to_binary(a, key))
+  """
+    name_dict = model_maker.label_naming_shorthand_dict()
+    keys = list(name_dict.keys())
+    if key == keys[0] or key == name_dict[keys[0]]:
+        a[a >= 4] = 0
+        a[a >= 2] = 1
+
+    elif key == keys[1] or key == name_dict[keys[1]]:
+        a[a >= 3] = 0
+        a[a >= 2] = 1
+
+    elif key == keys[2] or key == name_dict[keys[2]]:
+        print("""can not convert type """ + key + ' returning None')
+        return None
+    elif key == keys[3] or key == name_dict[keys[3]]:
+        print('already in the correct format')
+    elif key == keys[4] or key == name_dict[keys[4]]:
+        print("""can not convert type """ + key + ' returning None')
+        return None
+    elif key == keys[5] or key == name_dict[keys[5]]:
+        print("""can not convert type """ + key + ' returning None')
+        return None
+    elif key == keys[6] or key == name_dict[keys[6]]:
+        a[a >= 3] = 0
+        one_to_the_left_inds = a == 2
+        one_to_the_left_inds = np.append(one_to_the_left_inds[1:], False)
+        a[one_to_the_left_inds] = 1
+        a[a == 2] = 1
+    else:
+        raise ValueError("""key does not match. invalid key --> """ + key)
+    resort = [5, 1, 4, 0, 3, 2, 6]
+    a_final = []
+    for i in resort:
+        a_final.append(a[i])
+    return a_final
+
+
+
