@@ -12,7 +12,7 @@ import pandas as pd
 from tqdm import tqdm
 import copy
 import time
-from whacc import image_tools
+from whacc import image_tools, model_maker
 
 
 def four_class_labels_from_binary(x):
@@ -971,3 +971,62 @@ def add_to_h5(h5_file, key, values, overwrite_if_exists=False):
             print("""key already exists, NOT overwriting value..., \nset 'overwrite_if_exists' to True to overwrite""")
         else:
             h.create_dataset(key, data=values)
+
+
+def bool_pred_to_class_pred_formating(pred):
+    pred = pred.flatten()
+    zero_pred = np.ones_like(pred) - pred
+    x = np.vstack((zero_pred, pred)).T
+    return x
+
+
+def convert_labels_back_to_binary(a, key):
+    """
+  a is 'bool' array (integers not float predicitons)
+  key is the key name of the type of labels being inserted
+  can use the key name or the string in the key either will do.
+
+  Examples
+  ________
+    tmp2 = list(model_maker.label_naming_shorthand_dict().keys())
+    tmp3 = get_all_label_types_from_array(np.asarray([0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0]))
+    for a, key in zip(tmp3, tmp2):
+        print(convert_labels_back_to_binary(a, key))
+  """
+    name_dict = model_maker.label_naming_shorthand_dict()
+    keys = list(name_dict.keys())
+    if key == keys[0] or key == name_dict[keys[0]]:
+        a[a >= 4] = 0
+        a[a >= 2] = 1
+
+    elif key == keys[1] or key == name_dict[keys[1]]:
+        a[a >= 3] = 0
+        a[a >= 2] = 1
+
+    elif key == keys[2] or key == name_dict[keys[2]]:
+        print("""can not convert type """ + key + ' returning None')
+        return None
+    elif key == keys[3] or key == name_dict[keys[3]]:
+        print('already in the correct format')
+    elif key == keys[4] or key == name_dict[keys[4]]:
+        print("""can not convert type """ + key + ' returning None')
+        return None
+    elif key == keys[5] or key == name_dict[keys[5]]:
+        print("""can not convert type """ + key + ' returning None')
+        return None
+    elif key == keys[6] or key == name_dict[keys[6]]:
+        a[a >= 3] = 0
+        one_to_the_left_inds = a == 2
+        one_to_the_left_inds = np.append(one_to_the_left_inds[1:], False)
+        a[one_to_the_left_inds] = 1
+        a[a == 2] = 1
+    else:
+        raise ValueError("""key does not match. invalid key --> """ + key)
+    resort = [5, 1, 4, 0, 3, 2, 6]
+    a_final = []
+    for i in resort:
+        a_final.append(a[i])
+    return a_final
+
+
+
