@@ -12,7 +12,8 @@ import pandas as pd
 from tqdm import tqdm
 import copy
 import time
-from whacc import image_tools, model_maker
+from whacc import image_tools
+import whacc
 
 
 def four_class_labels_from_binary(x):
@@ -825,7 +826,7 @@ def get_all_label_types_from_array(array):
     x1 = copy.deepcopy(array)  # [0, 1]- (no touch, touch)
     all_labels.append(x1)
 
-    x2 = four_class_labels_from_binary(x1)  # [0, 1, 2, 3]- (no touch, touch, onset, offset)
+    x2 = utils.four_class_labels_from_binary(x1)  # [0, 1, 2, 3]- (no touch, touch, onset, offset)
     all_labels.append(x2)
 
     x3 = copy.deepcopy(x2)
@@ -862,7 +863,13 @@ def get_all_label_types_from_array(array):
     x7[x7 == 4] = 3
     all_labels.append(x7)
 
-    return np.asarray(all_labels)
+    resort = [5, 1, 4, 0, 3, 2, 6]
+    # resort = range(len(resort))
+    a_final = []
+    for i in resort:
+        a_final.append(all_labels[i])
+
+    return np.asarray(a_final)
 
 
 def make_alt_labels_h5s(base_dir_all_h5s):
@@ -907,23 +914,6 @@ def make_alt_labels_h5s(base_dir_all_h5s):
             x7[x7 == 5] = 0
             x7[x7 == 3] = 2
             x7[x7 == 4] = 3
-
-            # x6 = copy.deepcopy(x2)  # [0, 1, 2]- (no event, onset, offset)
-            #
-            # onset_inds = x6[:-1]==2
-            # bool_inds_one_after_onset = np.append(False, onset_inds)
-            # bool_inds_two_after_touch = np.append(False, bool_inds_one_after_onset[:-1])
-            #
-            # offset_inds = x6[:-1]==3
-            # bool_inds_one_after_offset = np.append(False, offset_inds)
-            # bool_inds_two_after_offset = np.append(False, bool_inds_one_after_offset[:-1])
-            #
-            # offset_inds = x6==3
-            # x6[bool_inds_one_after_onset] = 3
-            # x6[bool_inds_two_after_touch] = 4
-            # x6[offset_inds] = 5
-            # x6[bool_inds_one_after_offset] = 6
-            # x6[bool_inds_two_after_offset] = 7
 
         with h5py.File(new_h5_name, 'w') as h:
             h.create_dataset('[0, 1]- (no touch, touch)', shape=np.shape(x1), data=x1)
@@ -985,13 +975,6 @@ def convert_labels_back_to_binary(a, key):
   a is 'bool' array (integers not float predicitons)
   key is the key name of the type of labels being inserted
   can use the key name or the string in the key either will do.
-
-  Examples
-  ________
-    tmp2 = list(model_maker.label_naming_shorthand_dict().keys())
-    tmp3 = get_all_label_types_from_array(np.asarray([0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0]))
-    for a, key in zip(tmp3, tmp2):
-        print(convert_labels_back_to_binary(a, key))
   """
     name_dict = model_maker.label_naming_shorthand_dict()
     keys = list(name_dict.keys())
@@ -1022,11 +1005,11 @@ def convert_labels_back_to_binary(a, key):
         a[a == 2] = 1
     else:
         raise ValueError("""key does not match. invalid key --> """ + key)
-    resort = [5, 1, 4, 0, 3, 2, 6]
-    a_final = []
-    for i in resort:
-        a_final.append(a[i])
-    return a_final
+    return a
 
 
-
+def update_whacc():
+    x = '''python3 "/Users/phil/Dropbox/UPDATE_WHACC_PYPI.py"'''
+    out = os.popen(x).read()
+    print(out)
+    print('ALL DONE')
