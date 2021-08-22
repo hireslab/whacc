@@ -1,4 +1,5 @@
-from whacc import utils, image_tools, transfer_learning, analysis
+from whacc import utils, transfer_learning
+
 import matplotlib.pyplot as plt
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.models import Model
@@ -268,6 +269,46 @@ def re_build_model(model_name_str, class_numbers, base_learning_rate=0.00001, dr
     else:
         return model
 
+
+def reload_info_dict(base_dir):
+    info_dict_path = utils.get_files(base_dir, '*info_dict.json')[0]
+    with open(info_dict_path, 'r') as f:
+        D = json.load(f)
+    # replace the directory to the main directory
+    x = 'model_testing'
+    old_base_dir = ''
+    for k in D.keys():
+        try:
+            if x in D[k]:
+                D[k] = base_dir.split(x)[0] + x + D[k].split(x)[-1]
+                old_base_dir = D[k].split(x)[0]
+        except:
+            pass
+    D['old_base_dir'] = old_base_dir
+    D['checkpoints'] = utils.get_files(D['model_save_dir_checkpoints'], '*hdf5')
+    return D
+
+
+def load_model_data(all_models_directory):
+    data_files = utils.get_files(all_models_directory, '*model_eval_each_epoch.json')
+    to_split = '/content/gdrive/My Drive/colab_data2/model_testing/all_data/all_models/'
+    all_data = []
+    for i, k in enumerate(data_files):
+        if '/small_h5s/' not in k:
+            with open(k, 'r') as f:
+                a = json.load(f)
+            a['all_logs'] = np.asarray(a['all_logs'])
+            new_log_names = []
+            for k2 in a['logs_names']:
+                new_log_names.append(k2.split('bool_')[-1])
+            a['logs_names'] = new_log_names
+            a['logs_names'] = np.asarray(a['logs_names'])
+
+            k.split(to_split)[-1]
+            a['full_name'] = '__'.join(' '.join(k.split(to_split)[-1].split('/2021')[0].split('_')).split('/'))
+            a['dir'] = os.path.dirname(k)
+            all_data.append(a)
+    return all_data
 # def reload_info(base_dir):
 #   s = os.sep
 #   b = base_dir.split('all_models'+s)[-1].split(s)
