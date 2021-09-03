@@ -13,9 +13,11 @@ allow for plotting different plot using subplot I guess is the easiest way
 """
 from whacc import utils
 
-if utils.isnotebook(): # setting up plotting when using google colab or notebook (though only tested in colab)
+ # setting up plotting when using google colab or notebook (though only tested in colab)
+if utils.isnotebook():
 
     from IPython import get_ipython
+
     ipython = get_ipython()
     ipython.magic("matplotlib inline")
 from IPython import display
@@ -168,7 +170,7 @@ class save_and_plot_history(keras.callbacks.Callback):
             else:
                 self.all_logs = np.concatenate((self.all_logs, np.asarray(log_list)), axis=0)
             # if epoch > 0:
-            if len(self.all_logs.shape)>1:
+            if len(self.all_logs.shape) > 1:
                 display.clear_output(wait=True)
                 for kmark, kcol, k in zip(self.markers, self.color, self.plot_metric_inds):
                     plt.plot(self.all_logs[:, k], color=kcol, linestyle=kmark)
