@@ -6,9 +6,11 @@ import h5py
 from whacc import image_tools
 from whacc import utils
 import copy
+from matplotlib import cm
 from tqdm import tqdm
 import time
 import os
+import pdb
 
 
 class basic_metrics():
@@ -114,7 +116,8 @@ class basic_metrics():
 
 
 class pole_plot():
-    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5, len_plot=10, current_frame=0, figsize = [10, 10]):
+    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5, len_plot=10, current_frame=0,
+                 figsize=[10, 10]):
         """
         Examples
         ________
@@ -122,7 +125,7 @@ class pole_plot():
             '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/master_train_test1.h5',
             pred_val = [0,0,0,0,0,0,0,.2,.4,.5,.6,.7,.8,.8,.6,.4,.2,.1,0,0,0,0],
             true_val = [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0],
-            len_plot = 10)
+            len_plot = 10)ax
 
         a.plot_it()
         """
@@ -140,12 +143,11 @@ class pole_plot():
         self.fig_created = False
         try:
             tmp3 = np.unique(np.concatenate((self.pred_val, self.true_val)))
-            self.range_labels = list(range([np.nanmin(tmp3), np.nanmax(tmp3)+1]))
-            self.ylims = [np.nanmin(tmp3)-.5, np.nanmax(tmp3)+.5]
+            self.range_labels = list(range([np.nanmin(tmp3), np.nanmax(tmp3) + 1]))
+            self.ylims = [np.nanmin(tmp3) - .5, np.nanmax(tmp3) + .5]
         except:
-            self.range_labels = [0,1]
+            self.range_labels = [0, 1]
             self.ylims = [-.5, 1.5]
-            
 
         try:
             self.pred_val_bool = (1 * (self.pred_val > threshold)).flatten()
@@ -157,7 +159,7 @@ class pole_plot():
         if self.fig_created is False or self.isnotebook:  # we need to create a new fig every time if we are in colab or jupyter
             self.fig, self.axs = plt.subplots(2, figsize=self.figsize)
             self.fig_created = True
-            plt.subplots_adjust(hspace = .001)
+            plt.subplots_adjust(hspace=.001)
         self.axs[0].clear()
         self.axs[1].clear()
         self.fig.suptitle('Touch prediction')
@@ -196,7 +198,7 @@ class pole_plot():
 
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
-        frame_num_array = frame_num_array.astype(int)
+        frame_num_array = list(frame_num_array.astype(int))
         self.real = real_bool
         self.pred = pred_bool
         self.type_list = ['ghost', 'ghost', 'append', 'miss', 'miss', 'deduct', 'join', 'split']
@@ -204,25 +206,54 @@ class error_analysis():
         self.group_inds_pos = []
         self.error_neg = []
         self.error_pos = []
+        self.neg_add_to = []
+        self.pos_add_to = []
+
+        self.all_error_type = []
+        self.all_errors = []
+        self.all_error_nums = []
         if frame_num_array is None:
             frame_num_array = [len(self.pred)]
 
         for i, (i1, i2) in enumerate(self.loop_segments(frame_num_array)):  # separate the trials
-            d = self.get_diff_array(self.real[i1:i2], self.pred[i1:i2])
+            d = self.get_diff_array(self.real[i1:i2], self.pred[i1:i2])  # TP = 2, TN = 0, FP = -1, FN = 1
 
             R_neg, P_neg, X_neg, group_inds_neg = self.get_error_segments_plus_border(d, -1)
+            cnt = -1
             self.group_inds_neg += group_inds_neg
             for each_x in X_neg:
+                # cnt+=1
+                # if cnt == 11:
+                #     pdb.set_trace()
                 self.error_neg.append(self.get_error_type(each_x))
+                self.neg_add_to.append(i1)
 
             R_pos, P_pos, X_pos, group_inds_pos = self.get_error_segments_plus_border(d, 1)
             self.group_inds_pos += group_inds_pos
+
             for each_x in X_pos:
                 self.error_pos.append(self.get_error_type(each_x))
+                self.pos_add_to.append(i1)
+        self.get_all_errors_sorted_final()
+
+    def get_all_errors_sorted_final(self):
+        for k, i, et in zip(self.group_inds_neg, self.neg_add_to, self.error_neg):
+            self.all_errors.append(list(k + i))
+            self.all_error_type.append(self.type_list[et])
+            self.all_error_nums.append(et)
+        for k, i in zip(self.group_inds_pos, self.pos_add_to):
+            self.all_errors.append(list(k + i))
+            self.all_error_type.append(self.type_list[et])
+            self.all_error_nums.append(et)
+
+        # i = np.argsort([k[0] for k in self.all_errors])
+        # self.all_errors = [self.all_errors[k] for k in i]
+        # self.all_error_type = [self.all_error_type[k] for k in i]
+        # self.all_error_nums = [self.all_error_nums[k] for k in i]
 
     @staticmethod
     def loop_segments(frame_num_array):
-        frame_num_array = [0] + frame_num_array
+        frame_num_array = [0] + list(frame_num_array)
         frame_num_array = np.cumsum(frame_num_array)
         return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
 
@@ -320,7 +351,7 @@ def performance_filter(all_data, key_name, greater_than=.8, less_than_or_qual_to
     return keep_filt
 
 
-def plot_acc(all_data, all_keep_filt, figsize = [15, 10]):
+def plot_acc(all_data, all_keep_filt, figsize=[15, 10]):
     all_leg = []
     plt.figure(figsize=figsize)
     all_colors = []
@@ -342,3 +373,49 @@ def plot_acc(all_data, all_keep_filt, figsize = [15, 10]):
     plt.legend(all_leg)
     plt.ylabel('Accuracy', fontsize=22)
     plt.xlabel('Epochs', fontsize=22)
+
+
+def plot_touch_segment_with_array_blocks(actual_h5_img_file, in_list_of_arrays=[], touch_number=0, border=4, height=20,
+                                         img_width=61, color_list=None, cmap_col='inferno'):
+    if color_list is None:
+        color_list=[0, .5, .2, .3, .75, .85]
+
+    if in_list_of_arrays == []:
+        print('no input arrays, returning...')
+        return
+    color_dict = dict()
+    cmap = cm.get_cmap(cmap_col)
+
+    for i, k1 in enumerate(color_list):
+        color_dict[i] = np.asarray(cmap(k1)[:-1]) * 255
+
+    in_list_of_arrays = copy.deepcopy(in_list_of_arrays)
+    tmp1, tmp2 = utils.group_consecutives(np.where(in_list_of_arrays[0] != 0)[0])
+
+    inds = list(range(tmp1[touch_number][0] - border, tmp1[touch_number][-1] + 1 + border * 2))
+
+    for i, k in enumerate(in_list_of_arrays):
+        k = k.astype(float)
+        if i == 0:
+            tmp1 = np.tile(np.repeat(k[inds], img_width, axis=0), (height, 1))
+        else:
+            tmp1 = np.vstack((tmp1, np.tile(np.repeat(k[inds], img_width, axis=0), (height, 1))))
+    tmp1 = np.stack((tmp1,) * 3, axis=-1)
+
+    for kk in np.unique(tmp1.astype(int)):
+        tmp3 = np.where(tmp1 == kk)
+        for i1, i2 in zip(tmp3[0], tmp3[1]):
+            tmp1[i1, i2, :] = color_dict[kk]
+
+    tmp1 = tmp1.astype(int)
+    with h5py.File(actual_h5_img_file, 'r') as h:
+        tmp2 = image_tools.img_unstacker(h['images'][inds[0]:inds[-1] + 1], num_frames_wide=len(inds))
+        tmp2 = np.vstack((tmp1, tmp2))
+        return tmp2
+
+
+# tmp2 = plot_touch_segment_with_array_blocks(actual_h5_img_file, in_list_of_arrays=[real, pred_m, pred_v],
+#                                             touch_number=202, border=4, height=20, img_width=61,
+#                                             color_list=[0, .5, .2, .3, .85, .95], cmap_col='inferno')
+# plt.figure(figsize=(20, 10))
+# plt.imshow(tmp2)
