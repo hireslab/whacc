@@ -713,5 +713,67 @@ plt.imshow(tmp2)
 
 
 
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ get human agreed percentages $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+
+from whacc import utils
+all_h5s = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/finished_contacts/', print_h5_list=False)
+h_cont, h_names = utils._get_human_contacts_(all_h5s)
+print('--------\npercent fully agree\n--------')
+for k in h_cont:
+  a = np.mean(np.mean(k, axis=0)==1)
+  b = np.mean(np.mean(k, axis=0)==0)
+  print(np.round(a+b, 4))
 
 
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ replace h5 labels with average predictions $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+from whacc import utils
+import numpy as np
+
+base_dir = '/content/gdrive/My Drive/Colab data/curation_for_auto_curator/H5_data/'
+h5_list_to_write = utils.get_h5s(base_dir)
+all_h5s = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/finished_contacts/', print_h5_list=False)
+h_cont, h_names = utils._get_human_contacts_(all_h5s)
+
+for kk, h5 in zip(h_cont, all_h5s):
+  F_NAME = os.path.basename(h5).split('Phil_')[-1][:-3]
+  h52write = utils.lister_it(h5_list_to_write, keep_strings=F_NAME)[0]
+  print(h52write)
+
+  avg_cont = (np.mean(kk, axis = 0)>.5)*1
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0, 1, 0]))
+  for k in tmp1+1:
+    avg_cont[k] = 0
+
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,1]))
+  for k in tmp1+1:
+    avg_cont[k] = 1
+
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0,1,1,0]))
+  for k in tmp1+1:
+    avg_cont[k] = 0
+  for k in tmp1+2:
+    avg_cont[k] = 0
+
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,0,1]))
+  for k in tmp1+1:
+    avg_cont[k] = 1
+  for k in tmp1+2:
+    avg_cont[k] = 1
+
+  # assert that these types of errors dont exist in the final version after correcting them above
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0, 1, 0]))
+  assert tmp1.size == 0
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,1]))
+  assert tmp1.size == 0
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0,1,1,0]))
+  assert tmp1.size == 0
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,0,1]))
+  assert tmp1.size == 0
+
+  utils.add_to_h5(h52write, 'labels', avg_cont, overwrite_if_exists=True)
