@@ -64,7 +64,7 @@ def lister_it(in_list, keep_strings=None, remove_string=None):
         remove_string = [remove_string]
 
     if keep_strings is None:
-        new_list = in_list
+        new_list = copy.deepcopy(in_list)
     else:
         new_list = []
         for L in in_list:
@@ -73,14 +73,15 @@ def lister_it(in_list, keep_strings=None, remove_string=None):
                     new_list.append(L)
 
     if remove_string is None:
-        new_list_2 = new_list
+        new_list_2 = copy.deepcopy(in_list)
     else:
         new_list_2 = []
         for L in new_list:
             for k in remove_string:
                 if k not in L:
                     new_list_2.append(L)
-    return new_list_2
+    final_list = intersect_lists([new_list_2, new_list])
+    return final_list
 
 
 def plot_pole_tracking_max_vals(h5_file):
@@ -970,7 +971,8 @@ def bool_pred_to_class_pred_formating(pred):
     return x
 
 
-def convert_labels_back_to_binary(a, key):
+def convert_labels_back_to_binary(b, key):
+    a = copy.deepcopy(b)
     """
   a is 'bool' array (integers not float predicitons)
   key is the key name of the type of labels being inserted
@@ -1013,3 +1015,23 @@ def update_whacc():
     out = os.popen(x).read()
     print(out)
     print('ALL DONE')
+
+
+def make_list(x, suppress_warning=False):
+    if not isinstance(x, list):
+        if not suppress_warning:
+            raise ValueError(
+                """input is supposed to be a list, converting it but user should do this to suppress this warning""")
+        x2 = [x]
+        return x2
+
+
+def search_sequence_numpy(arr, seq, return_type='indices'):
+    Na, Nseq = arr.size, seq.size
+    r_seq = np.arange(Nseq)
+    M = (arr[np.arange(Na - Nseq + 1)[:, None] + r_seq] == seq).all(1)
+
+    if return_type == 'indices':
+        return np.where(M)[0]
+    elif return_type == 'bool':
+        return M
