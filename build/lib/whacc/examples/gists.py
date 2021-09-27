@@ -602,3 +602,178 @@ for h5, h5_dest in zip(tmp1, to_pred_h5s):
     keys = utils.print_h5_keys(h5, return_list=True, do_print=False)
     for key in keys:
         utils.copy_h5_key_to_another_h5(h5, h5_dest, key)
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$  use color map to plot the predicitons with the images   $$$$$$$$$$$$$$$$$$$$$$$$"""
+
+color_dict = dict()
+
+cmap = cm.get_cmap('inferno')
+color_list = [0, .2, .4, .5, .6, .8]
+for i, k1 in enumerate(color_list):
+  color_dict[i] = np.asarray(cmap(k1)[:-1])*255
+
+# color_dict[0] =np.asarray(cmap(0)[:-1])*255 #(255, 230, 230)
+
+# color_dict[2] = np.asarray(cmap(0.2)[:-1])*255#(0, 255, 153)
+# color_dict[3] = np.asarray(cmap(0.4)[:-1])*255#(0, 255, 0)
+
+# color_dict[1] = np.asarray(cmap(0.5)[:-1])*255#(51, 102, 0)
+
+# color_dict[4] = np.asarray(cmap(0.6)[:-1])*255#(255, 153, 51)
+# color_dict[5] = np.asarray(cmap(.8)[:-1])*255#(255, 51, 0)
+
+img_width = 61
+height = 20
+
+tmp1, tmp2 = utils.group_consecutives(np.where(real_bool==1)[0])
+border = 2
+k +=1
+pred_m = pred_m.astype(float)
+inds = range(tmp1[k][0]-border, tmp1[k][-1]+1+border*2)
+tmp1 = []
+
+tmp1 = np.tile(np.repeat(pred_m[inds], img_width, axis=0), (height, 1))
+tmp1 = np.vstack((tmp1, np.tile(np.repeat(real[inds], img_width, axis=0), (height, 1))))
+tmp1 = np.vstack((tmp1, np.tile(np.repeat(pred_v[inds], img_width, axis=0), (height, 1))))
+
+
+tmp1 = np.stack((tmp1,)*3, axis=-1)
+
+for kk in np.unique(tmp1.astype(int)):
+  tmp3 = np.where(tmp1 == kk)
+  for i1, i2 in zip(tmp3[0], tmp3[1]):
+    tmp1[i1, i2, :] = color_dict[kk]
+
+tmp1 = tmp1.astype(int)
+# tmp1 = np.round((tmp1/5)*255).astype(int)
+# tmp1[:, :, 1] = .5
+# tmp1[:, :, 0] = .5
+
+plt.figure(figsize=(20, 10))
+with h5py.File(actual_h5_img_file, 'r') as h:
+  tmp2 = image_tools.img_unstacker(h['images'][inds[0]:inds[-1]+1], num_frames_wide=len(inds))
+  tmp2 = np.vstack((tmp1, tmp2))
+  plt.imshow(tmp2)
+
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$  use color map to plot the predicitons with the images  VVVV222222 $$$$$$$$$$$$$$$$$$$$$$$$"""
+
+
+
+def foo2(in_list_of_arrays = [], touch_number = 0 , border = 4, height = 20, img_width = 61,
+         color_list = [0, .5, .2, .3, .75, .85], cmap_col = 'inferno'):
+  # in_list_of_arrays[0] needs to be the "true"" values
+  if in_list_of_arrays == []:
+    print('no input arrays, returning...')
+    return
+  color_dict = dict()
+  cmap = cm.get_cmap(cmap_col)
+
+  for i, k1 in enumerate(color_list):
+    color_dict[i] = np.asarray(cmap(k1)[:-1])*255
+
+
+  in_list_of_arrays = copy.deepcopy(in_list_of_arrays)
+  tmp1, tmp2 = utils.group_consecutives(np.where(in_list_of_arrays[0]!=0)[0])
+
+  inds = list(range(tmp1[touch_number][0]-border, tmp1[touch_number][-1]+1+border*2))
+
+  tmp1 = np.tile(np.repeat(pred_m[inds], img_width, axis=0), (height, 1))
+  for i, k in enumerate(in_list_of_arrays):
+    k = k.astype(float)
+    if i == 0:
+      tmp1 = np.tile(np.repeat(k[inds], img_width, axis=0), (height, 1))
+    else:
+      tmp1 = np.vstack((tmp1, np.tile(np.repeat(k[inds], img_width, axis=0), (height, 1))))
+  tmp1 = np.stack((tmp1,)*3, axis=-1)
+
+  for kk in np.unique(tmp1.astype(int)):
+    tmp3 = np.where(tmp1 == kk)
+    for i1, i2 in zip(tmp3[0], tmp3[1]):
+      tmp1[i1, i2, :] = color_dict[kk]
+
+  tmp1 = tmp1.astype(int)
+  with h5py.File(actual_h5_img_file, 'r') as h:
+    tmp2 = image_tools.img_unstacker(h['images'][inds[0]:inds[-1]+1], num_frames_wide=len(inds))
+    tmp2 = np.vstack((tmp1, tmp2))
+    return tmp2
+
+tmp2 = foo2(in_list_of_arrays = [real, pred_m, pred_v], touch_number = 201, border = 4, height = 20, img_width = 61,
+        color_list = [0, .5, .2, .3, .85, .95], cmap_col = 'inferno')
+plt.figure(figsize=(20, 10))
+plt.imshow(tmp2)
+
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ get human agreed percentages $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+
+from whacc import utils
+all_h5s = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/finished_contacts/', print_h5_list=False)
+h_cont, h_names = utils._get_human_contacts_(all_h5s)
+print('--------\npercent fully agree\n--------')
+for k in h_cont:
+  a = np.mean(np.mean(k, axis=0)==1)
+  b = np.mean(np.mean(k, axis=0)==0)
+  print(np.round(a+b, 4))
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ replace h5 labels with average predictions $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+from whacc import utils
+import numpy as np
+
+base_dir = '/content/gdrive/My Drive/Colab data/curation_for_auto_curator/H5_data/'
+h5_list_to_write = utils.get_h5s(base_dir)
+all_h5s = utils.get_h5s('/content/gdrive/My Drive/Colab data/curation_for_auto_curator/finished_contacts/', print_h5_list=False)
+h_cont, h_names = utils._get_human_contacts_(all_h5s)
+
+for kk, h5 in zip(h_cont, all_h5s):
+  F_NAME = os.path.basename(h5).split('Phil_')[-1][:-3]
+  h52write = utils.lister_it(h5_list_to_write, keep_strings=F_NAME)[0]
+  print(h52write)
+
+  avg_cont = (np.mean(kk, axis = 0)>.5)*1
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0, 1, 0]))
+  for k in tmp1+1:
+    avg_cont[k] = 0
+
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,1]))
+  for k in tmp1+1:
+    avg_cont[k] = 1
+
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0,1,1,0]))
+  for k in tmp1+1:
+    avg_cont[k] = 0
+  for k in tmp1+2:
+    avg_cont[k] = 0
+
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,0,1]))
+  for k in tmp1+1:
+    avg_cont[k] = 1
+  for k in tmp1+2:
+    avg_cont[k] = 1
+
+  # assert that these types of errors dont exist in the final version after correcting them above
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0, 1, 0]))
+  assert tmp1.size == 0
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,1]))
+  assert tmp1.size == 0
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([0,1,1,0]))
+  assert tmp1.size == 0
+  tmp1 = utils.search_sequence_numpy(avg_cont, np.asarray([1,0,0,1]))
+  assert tmp1.size == 0
+
+  utils.add_to_h5(h52write, 'labels', avg_cont, overwrite_if_exists=True)
