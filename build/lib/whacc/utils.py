@@ -3,17 +3,40 @@ import shutil
 import numpy as np
 from pathlib import Path
 import os
+import sys
 import glob
 from natsort import os_sorted
 import scipy.io as spio
 import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
-from tqdm import tqdm
+
 import copy
 import time
 from whacc import image_tools
 import whacc
+
+
+def isnotebook():
+    try:
+        c = str(get_ipython().__class__)
+        shell = get_ipython().__class__.__name__
+        if 'colab' in c:
+            return True
+        elif shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+
+if isnotebook():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 def four_class_labels_from_binary(x):
@@ -483,22 +506,6 @@ def loop_segments(frame_num_array):
     return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
 
 
-def isnotebook():
-    try:
-        c = str(get_ipython().__class__)
-        shell = get_ipython().__class__.__name__
-        if 'colab' in c:
-            return True
-        elif shell == 'ZMQInteractiveShell':
-            return True  # Jupyter notebook or qtconsole
-        elif shell == 'TerminalInteractiveShell':
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False  # Probably standard Python interpreter
-
-
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
@@ -949,6 +956,22 @@ def get_in_range(H5_list, pole_up_add=200, pole_down_add=0, write_to_h5=True, re
                 all_in_range.append(new_in_range)
     if return_in_range:
         return all_in_range
+
+
+def define_in_range(h5_file, pole_up_set_time=0, pole_down_add_to_trigger=0, write_to_h5=True, return_in_range=False):
+    with h5py.File(h5_file, 'r+') as hf:
+        new_in_range = np.zeros_like(hf['in_range'][:])
+        fn = hf['trial_nums_and_frame_nums'][1, :]
+        for i, (i1, i2) in enumerate(loop_segments(fn)):
+            x = hf['pole_times'][:, i] + i1
+            x1 = i1 + pole_up_set_time
+            x2 = x[1] + pole_down_add_to_trigger
+            x2 = min([x2, i2])
+            new_in_range[x1:x2] = 1
+        if write_to_h5:
+            hf['in_range'][:] = new_in_range
+        if return_in_range:
+            return new_in_range
 
 
 def add_to_h5(h5_file, key, values, overwrite_if_exists=False):
