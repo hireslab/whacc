@@ -4,10 +4,31 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 import copy
-from tqdm import tqdm
 import time
 import os
 from whacc import utils
+
+
+def isnotebook():
+    try:
+        c = str(get_ipython().__class__)
+        shell = get_ipython().__class__.__name__
+        if 'colab' in c:
+            return True
+        elif shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+
+if isnotebook():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 def stack_imgs_lag(imgs, frames_1=None, buffer=2, shift_to_the_right_by=0):
@@ -132,7 +153,7 @@ def del_h5_with_term(h5_list, str_2_cmp):
 
 def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000,
                            add_numbers_to_name=True,
-                           disable_TQDM=False, set_seed=None, color_channel = True):
+                           disable_TQDM=False, set_seed=None, color_channel=True):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -221,10 +242,12 @@ def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, 
                         ims = []
                         labels = []
                 h5_creators[i].add_to_h5(np.asarray(ims), np.asarray(labels))
-                with h5py.File(h5_creators[i].h5_full_file_name, 'r+') as h2: # wanted to do this to allow NONE as input and still have frame nums, but I need to have an append after creating and its a pain
+                with h5py.File(h5_creators[i].h5_full_file_name,
+                               'r+') as h2:  # wanted to do this to allow NONE as input and still have frame nums, but I need to have an append after creating and its a pain
                     frame_nums = np.asarray(list_of_new_frame_nums[i])
                     if 'frame_nums' not in h2.keys():
-                        h2.create_dataset('frame_nums', shape=np.shape(frame_nums), maxshape=(None,), chunks=True, data=frame_nums)
+                        h2.create_dataset('frame_nums', shape=np.shape(frame_nums), maxshape=(None,), chunks=True,
+                                          data=frame_nums)
                     else:
                         h2['frame_nums'].resize(h2['frame_nums'].shape[0] + frame_nums.shape[0], axis=0)
                         h2['frame_nums'][-frame_nums.shape[0]:] = frame_nums
@@ -234,6 +257,7 @@ def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, 
     #         h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
     return final_names
 
+
 def make_sure_frame_nums_exist(h5file):
     with h5py.File(h5file, 'r+') as h:
         key_list = list(h.keys())
@@ -241,13 +265,15 @@ def make_sure_frame_nums_exist(h5file):
             print("""'frame_nums' already in the key list""")
             return None
         if 'trial_nums_and_frame_nums' not in key_list:
-            print("""key 'trial_nums_and_frame_nums' must be in the provided h5 this is the only reason program exists""")
+            print(
+                """key 'trial_nums_and_frame_nums' must be in the provided h5 this is the only reason program exists""")
             return None
         frame_nums = h['trial_nums_and_frame_nums'][1, :]
         h.create_dataset('frame_nums', shape=np.shape(frame_nums), data=frame_nums)
 
+
 def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000, add_numbers_to_name=True,
-             disable_TQDM=False, skip_if_label_is_neg_1=False, set_seed=None, color_channel = True):
+             disable_TQDM=False, skip_if_label_is_neg_1=False, set_seed=None, color_channel=True):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -296,7 +322,8 @@ def split_h5(h5_to_split_list, split_percentages, temp_base_name, chunk_size=100
                         final_names.append(temp_base_name[i] + '.h5')
                     h5_creators[i] = h5_iterative_creator(final_names[-1],
                                                           overwrite_if_file_exists=True,
-                                                          close_and_open_on_each_iteration=True, color_channel = color_channel)
+                                                          close_and_open_on_each_iteration=True,
+                                                          color_channel=color_channel)
                 ims = []
                 labels = []
                 # print('starting ' + str(iii*i + 1) + ' of ' + str(len(split_percentages)*len(h5_to_split_list)))
