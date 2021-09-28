@@ -21,10 +21,30 @@ from tqdm import tqdm
 from PIL import Image
 from whacc.image_tools import h5_iterative_creator
 
+
 # import pdb
 # from whacc import utils
+def isnotebook():
+    try:
+        c = str(get_ipython().__class__)
+        shell = get_ipython().__class__.__name__
+        if 'colab' in c:
+            return True
+        elif shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
 
-tqdm = partial(tqdm, position=0, leave=True)
+
+if isnotebook():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
+# tqdm = partial(tqdm, position=0, leave=True)
 
 ################### drive.mount('/content/gdrive')
 
@@ -263,10 +283,11 @@ class PoleTracking():
             neg_1_filler_labels = np.float64(np.ones(img_stack.shape[0]) * -1)
             h5creator.add_to_h5(img_stack, neg_1_filler_labels)
             # loc_stack_all.append(loc_stack)
-            loc_stack_all = np.vstack((loc_stack_all, loc_stack)) if len(loc_stack_all)!=0 else loc_stack
+            loc_stack_all = np.vstack((loc_stack_all, loc_stack)) if len(loc_stack_all) != 0 else loc_stack
             # max_val_stack_all.append(max_val_stack)
             max_val_stack = np.asarray(max_val_stack)
-            max_val_stack_all = np.hstack((max_val_stack_all, max_val_stack)) if len(max_val_stack_all)!=0 else max_val_stack
+            max_val_stack_all = np.hstack((max_val_stack_all, max_val_stack)) if len(
+                max_val_stack_all) != 0 else max_val_stack
             len_all += img_stack.shape[0]
         h5creator.close_h5()
 
@@ -517,7 +538,3 @@ class PoleTracking():
                 change_trig = False
 
         self.template_image = template_image[:, :, 0]
-
-
-
-
