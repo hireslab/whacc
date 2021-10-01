@@ -785,6 +785,7 @@ for kk, h5 in zip(h_cont, all_h5s):
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$ Fully automate the generation of all types data folder using a single H5 file (normal with "color" channels) $$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$ WITH AUGMENTATION $$$$$$$$$ WITH AUGMENTATION $$$$$$$$$ WITH AUGMENTATION $$$$$$$$$ WITH AUGMENTATION $$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 
@@ -901,3 +902,51 @@ src = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/ALL_RETRAIN_
 for rootdir, dirs, files in os.walk(src):
     for subdir in dirs:
         print(os.path.join(src, subdir))
+
+
+
+
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ Fully automate the generation of all types data folder using a single H5 file (normal with "color" channels) $$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+from whacc import utils
+from whacc import image_tools
+from keras.preprocessing.image import ImageDataGenerator
+import h5py
+import matplotlib.pyplot as plt
+from imgaug import augmenters as iaa  # optional program to further augment data
+#**********$%$%$%$%$%%$
+# v^v^v^v^v^ these indacate areas where user may want to customize like make a test set for example
+#**********$%$%$%$%$%%$
+base_dir_all = '/content/'
+
+
+full_session_h5s = "/content/gdrive/My Drive/Colab data/curation_for_auto_curator/H5_data/"
+full_session_h5s = utils.get_h5s(full_session_h5s, 0)
+b = utils.print_h5_keys(full_session_h5s[0], 1, 0)
+c = utils.lister_it(b, remove_string='MODEL')
+utils.print_list_with_inds(c)
+
+for h5_subset_file in tqdm(full_session_h5s[:4]):
+  a = h5_subset_file.split('/')[-1].split('RETRAIN_')[-1].split('.h5')[0]
+  base_h5 =  base_dir_all + 'DATA_FULL/data_'+a
+  single_frame_h5s = base_h5+'/single_frame/'
+
+  # Path(tmp_h5s).mkdir(parents = True, exist_ok = True)
+  Path(single_frame_h5s).mkdir(parents = True, exist_ok = True)
+
+  #vvvvvv single frame
+  single_name = single_frame_h5s+a+'.h5'
+  utils.reduce_to_single_frame_from_color(h5_subset_file, single_name)
+  #^^^^^^ single frame
+  #vvvvvvvv convert to all types
+  utils.make_all_H5_types(single_frame_h5s)  # auto generate all the h5 types using a single set of flat (no color) image H5
+  utils.make_alt_labels_h5s(single_frame_h5s)  # auto generate the different types of labels
+  #^^^^^^^^ convert to all types
+
