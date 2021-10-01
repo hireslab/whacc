@@ -767,6 +767,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
     """ """
 
     def __init__(self, batch_size, h5_file_list):
+        h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
         num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
         file_inds_for_H5_extraction = batch_size_file_ind_selector(
             num_frames_in_all_H5_files, batch_size)

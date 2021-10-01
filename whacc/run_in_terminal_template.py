@@ -101,7 +101,7 @@ def make_initial_folder(all_models_directory, unique_h5_train_val_dir):
     # return single_frame_dir
 
 
-def get_automated_model_info(BASE_H5, image_source_h5_directory_ending, test_data_dir):
+def get_automated_model_info(BASE_H5, image_source_h5_directory_ending, test_data_dir, data_string_key = "data"):
     tz = pytz.timezone('America/Los_Angeles')
     loc_dt = pytz.utc.localize(datetime.utcnow())
     LA_TIME = loc_dt.astimezone(tz)
@@ -110,8 +110,8 @@ def get_automated_model_info(BASE_H5, image_source_h5_directory_ending, test_dat
     del loc_dt
     del LA_TIME
     a = os.sep
-    base_data_dir = BASE_H5 + a + "data" + a
-    base_dir_all_h5s = BASE_H5 + a + 'data' + a + 'single_frame' + a
+    base_data_dir = BASE_H5 + a + data_string_key + a
+    base_dir_all_h5s = BASE_H5 + a + data_string_key + a + 'single_frame' + a
     data_dir = base_data_dir + image_source_h5_directory_ending
     print('\nFOR IMAGES, 0 is train set, 1 is val set')
     print(data_dir)
