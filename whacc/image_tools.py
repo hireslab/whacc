@@ -766,7 +766,7 @@ def reset_to_first_frame_for_each_file_ind(file_inds_for_H5_extraction):
 class ImageBatchGenerator(keras.utils.Sequence):
     """ """
 
-    def __init__(self, batch_size, h5_file_list):
+    def __init__(self, batch_size, h5_file_list, label_key = 'labels'):
         h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
         num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
         file_inds_for_H5_extraction = batch_size_file_ind_selector(
@@ -774,6 +774,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
         subtract_for_index = reset_to_first_frame_for_each_file_ind(
             file_inds_for_H5_extraction)
         # self.to_fit = to_fit #set to True to return XY and False to return X
+        self.label_key = label_key
         self.batch_size = batch_size
         self.H5_file_list = h5_file_list
         self.num_frames_in_all_H5_files = num_frames_in_all_H5_files
@@ -797,7 +798,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
             raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
             rgb_tensor = self.image_transform(raw_X)
 
-            labels_tmp = H5['labels']
+            labels_tmp = H5[self.label_key]
             raw_Y = labels_tmp[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
             H5.close()
         return rgb_tensor, raw_Y
@@ -816,7 +817,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
     #     rgb_tensor = self.image_transform(raw_X)
     #
     #     # if self.to_fit:
-    #     #   labels_tmp = H5['labels']
+    #     #   labels_tmp = H5[self.label_key]
     #     #   raw_Y = labels_tmp[b*num_2_extract_mod:b*(num_2_extract_mod+1)]
     #     #   return rgb_tensor, raw_Y
     #     # else:
@@ -846,7 +847,7 @@ class ImageBatchGenerator(keras.utils.Sequence):
         num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
         raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
         rgb_tensor = self.image_transform(raw_X)
-        labels_tmp = H5['labels']
+        labels_tmp = H5[self.label_key]
         raw_Y = labels_tmp[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
         return rgb_tensor, raw_Y
 
