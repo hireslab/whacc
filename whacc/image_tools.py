@@ -60,6 +60,7 @@ def get_h5_key_and_concatenate(h5_list, key_name='labels'):
         default 'labels', the key to get the data from the H5 file
 
     """
+    h5_list = utils.make_list(h5_list, suppress_warning=True)
     for i, k in enumerate(h5_list):
         with h5py.File(k, 'r') as h:
             if i == 0:
@@ -188,6 +189,10 @@ def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, 
     else:
         assert len(temp_base_name) == len(
             split_percentages), """if 'temp_base_name' is a list of strings, it must be equal in length to 'split_percentages'"""
+
+    for i, k in enumerate(temp_base_name):
+        if k[-3:] == '.h5':
+            temp_base_name[i] = temp_base_name[i][:-3]
 
     frame_num_array_list = get_h5_key_and_dont_concatenate(h5_to_split_list, 'frame_nums')
 
