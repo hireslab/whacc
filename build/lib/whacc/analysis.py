@@ -116,8 +116,8 @@ class basic_metrics():
 
 
 class pole_plot():
-    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5, len_plot=10, current_frame=0,
-                 figsize=[10, 10]):
+    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5,
+                 len_plot=10, current_frame=0, figsize = [10, 5], label_nums = None, label_num_names = None, shift_by = 0):
         """
         Examples
         ________
@@ -125,13 +125,21 @@ class pole_plot():
             '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/master_train_test1.h5',
             pred_val = [0,0,0,0,0,0,0,.2,.4,.5,.6,.7,.8,.8,.6,.4,.2,.1,0,0,0,0],
             true_val = [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0],
-            len_plot = 10)ax
+            len_plot = 10)
 
         a.plot_it()
         """
         if true_val is None:
             if 'labels' in utils.print_h5_keys(img_h5_file, return_list=True, do_print=False):
                 true_val = image_tools.get_h5_key_and_concatenate([img_h5_file])
+        # tmp_loc = locals()
+        self.error_group_inds = None
+        # if 'true_val' in tmp_loc.keys() and 'pred_val' in tmp_loc.keys():
+        if pred_val is not None and true_val is not None:
+          error_group_inds = np.where(true_val - pred_val != 0 )[0]
+          error_group_inds, _ = utils.group_consecutives(error_group_inds)
+          self.error_group_inds = error_group_inds
+
         self.isnotebook = utils.isnotebook()
         self.img_h5_file = img_h5_file
         self.pred_val = np.asarray(pred_val)
@@ -141,14 +149,20 @@ class pole_plot():
         self.current_frame = current_frame
         self.figsize = figsize
         self.fig_created = False
-        try:
-            tmp3 = np.unique(np.concatenate((self.pred_val, self.true_val)))
-            self.range_labels = list(range([np.nanmin(tmp3), np.nanmax(tmp3) + 1]))
-            self.ylims = [np.nanmin(tmp3) - .5, np.nanmax(tmp3) + .5]
-        except:
-            self.range_labels = [0, 1]
-            self.ylims = [-.5, 1.5]
+        # pdb.set_trace()
+        if pred_val is None:
+          tmp3 = self.true_val
+        elif true_val is None:
+          tmp3 = self.pred_val
+        else:
+          tmp3 = np.unique(np.concatenate((self.pred_val, self.true_val)))
+        self.range_labels = np.arange(np.nanmin(tmp3), np.nanmax(tmp3)+1)
+        self.ylims = [np.nanmin(tmp3)-.5, np.nanmax(tmp3)+.5]
 
+        self.label_nums = label_nums
+        self.label_num_names = label_num_names
+        self.shift_by = shift_by
+        self.xlims = [-.5, self.len_plot-.5]
         try:
             self.pred_val_bool = (1 * (self.pred_val > threshold)).flatten()
         except:
@@ -157,23 +171,36 @@ class pole_plot():
     def plot_it(self):
 
         if self.fig_created is False or self.isnotebook:  # we need to create a new fig every time if we are in colab or jupyter
-            self.fig, self.axs = plt.subplots(2, figsize=self.figsize)
+            self.fig, self.axs = plt.subplots(2, figsize=self.figsize, gridspec_kw={'height_ratios': [1, 1]})
             self.fig_created = True
-            plt.subplots_adjust(hspace=.001)
+            # plt.subplots_adjust(hspace = .001)
+
+
+
+        ax1 = self.axs[1]
+        box = ax1.get_position()
+        box.y0 = box.y0 + self.shift_by
+        box.y1 = box.y1 + self.shift_by
+        ax1.set_position(box)
+
+
         self.axs[0].clear()
         self.axs[1].clear()
         self.fig.suptitle('Touch prediction')
         s1 = self.current_frame
         s2 = self.current_frame + self.len_plot
+        self.xticks = np.arange(0, self.len_plot)
         # plt.axis('off')
         with h5py.File(self.img_h5_file, 'r') as h:
             self.current_imgs = image_tools.img_unstacker(h['images'][s1:s2], s2 - s1)
             # plt.imshow(self.current_imgs)
             self.axs[0].imshow(self.current_imgs)
+            self.axs[0].axis('off')
+
         leg = []
         # axs[1].plot([None])
         if len(self.pred_val.shape) != 0:
-            plt.plot(self.pred_val[s1:s2].flatten(), 'k-')
+            plt.plot(self.pred_val[s1:s2].flatten(), color='black', marker='*', linestyle='None')
             leg.append('pred')
         # if len(self.pred_val_bool.shape) != 0:
         #     plt.plot(self.pred_val_bool[s1:s2].flatten(), '.g', markersize=10)
@@ -183,10 +210,13 @@ class pole_plot():
             plt.scatter(range(len(tmp1)), tmp1, s=80, facecolors='none', edgecolors='r')
             leg.append('actual')
         if leg:
-            plt.legend(leg, )
+            plt.legend(leg, bbox_to_anchor=(1.04,1), borderaxespad=0)
             plt.ylim(self.ylims)
-            # plt.ylim([-.2, 1.2])
-
+            plt.xlim(self.xlims)
+            _ = plt.xticks(ticks=self.xticks)
+        if self.label_nums is not None and self.label_num_names is not None:
+            plt.yticks(ticks=self.label_nums, labels = self.label_num_names)
+        plt.grid(axis='y')
     def next(self):
         self.current_frame = self.current_frame + self.len_plot
         self.plot_it()
