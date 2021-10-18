@@ -202,7 +202,7 @@ import h5py
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from imgaug import augmenters as iaa  # optional program to further augment data
-h5_subset_file = '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/for_aug/3lag/AH0000x000000_5border_single_frame_onset_offset_for_aug_3lag_remove_2_edges.h5'
+# h5_subset_file = '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/for_aug/3lag/AH0000x000000_5border_single_frame_onset_offset_for_aug_3lag_remove_2_edges.h5'
 for h5_subset_file in utils.get_files('/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/for_aug/', '*remove_2_edges.h5'):
     datagen = ImageDataGenerator(rotation_range=360,  #
                                  width_shift_range=.1,  #
@@ -777,3 +777,252 @@ for kk, h5 in zip(h_cont, all_h5s):
   assert tmp1.size == 0
 
   utils.add_to_h5(h52write, 'labels', avg_cont, overwrite_if_exists=True)
+
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ Fully automate the generation of all types data folder using a single H5 file (normal with "color" channels) $$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$ WITH AUGMENTATION $$$$$$$$$ WITH AUGMENTATION $$$$$$$$$ WITH AUGMENTATION $$$$$$$$$ WITH AUGMENTATION $$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+
+from whacc import utils
+from whacc import image_tools
+from keras.preprocessing.image import ImageDataGenerator
+import h5py
+import shutil
+from imgaug import augmenters as iaa  # optional program to further augment data
+subset_h5s = utils.get_h5s("/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/RETRAIN_H5_data/")
+
+
+def foo_get_frame_nums_from_all_inds(h5_subset_file):
+  tmp1 = image_tools.get_h5_key_and_concatenate([h5_subset_file], 'all_inds')
+  tmp1, tmp2 = utils.group_consecutives(tmp1)
+  frame_nums = []
+  for k in tmp2:
+    frame_nums.append(len(k))
+  return frame_nums
+
+base_dir_all = '/content/'
+#**********$%$%$%$%$%%$
+# these indicate areas where user may want to customize like make a test set for example
+#**********$%$%$%$%$%%$
+
+tmp_h5s = base_dir_all+'tmp_h5s/'
+for h5_subset_file in tqdm(subset_h5s):
+  a = h5_subset_file.split('/')[-1].split('RETRAIN_')[-1].split('.h5')[0]
+  base_h5 =  base_dir_all + 'DATA/data_'+a
+  single_frame_h5s = base_h5+'/single_frame/'
+
+  Path(tmp_h5s).mkdir(parents = True, exist_ok = True)
+  Path(single_frame_h5s).mkdir(parents = True, exist_ok = True)
+  #vvvvv add the frame nums to the H5 file
+  frame_nums = foo_get_frame_nums_from_all_inds(h5_subset_file)
+  utils.add_to_h5(h5_subset_file, 'frame_nums', frame_nums, overwrite_if_exists = True)
+  #^^^^^ add the frame nums to the H5 file
+  #vvvvvv single frame and then split
+  utils.reduce_to_single_frame_from_color(h5_subset_file, tmp_h5s+'temp.h5')
+
+  split_h5s = image_tools.split_h5_loop_segments([tmp_h5s+'temp.h5'],
+                                     split_percentages=[.8, .2], #**********$%$%$%$%$%%$
+                                     temp_base_name= [single_frame_h5s+'train',single_frame_h5s+'val'], #**********$%$%$%$%$%%$
+                                     chunk_size=10000,
+                                     add_numbers_to_name=False,
+                                     disable_TQDM=True,
+                                     set_seed=0,
+                                     color_channel=False)
+  #^^^^^^ single frame and then split
+  #vvvvvvvv convert to all types
+  utils.make_all_H5_types(single_frame_h5s)  # auto generate all the h5 types using a single set of flat (no color) image H5
+  utils.make_alt_labels_h5s(single_frame_h5s)  # auto generate the different types of labels
+  #^^^^^^^^ convert to all types
+  #vvvvv AUGMENT #**********$%$%$%$%$%%$
+  datagen = ImageDataGenerator(rotation_range=360,  #
+                                width_shift_range=.1,  #
+                                height_shift_range=.1,  #
+                                shear_range=.00,  #
+                                zoom_range=.25,
+                                brightness_range=[0.2, 1.2])  #
+  gaussian_noise = iaa.AdditiveGaussianNoise(loc = 0, scale=3)
+  num_aug = 1
+  xxx = utils.get_h5s(base_h5)
+  xxx = utils.lister_it(xxx, remove_string=['ALT_LABELS', 'single_frame'])
+  for each_h5 in xxx:
+    if 'images' in utils.print_h5_keys(each_h5, True, False):
+      combine_list = [each_h5]
+
+      shutil.rmtree(tmp_h5s)
+      Path(tmp_h5s).mkdir(parents = True, exist_ok = True)
+      for ii in range(2):
+        new_H5_file = each_h5.split('.')[0] + '_AUG_' + str(ii) + '.h5' # create new file name based on teh original H5 name
+        new_H5_file = tmp_h5s + os.path.basename(new_H5_file)
+        combine_list.append(new_H5_file)
+        h5creator = image_tools.h5_iterative_creator(new_H5_file, overwrite_if_file_exists=True,
+                                                      close_and_open_on_each_iteration=True, color_channel=True)
+
+        with h5py.File(each_h5, 'r') as hf:
+          for image, label in zip(hf['images'][:], hf['labels'][:]):
+            aug_img_stack, labels_stack = image_tools.augment_helper(datagen, num_aug, 0, image, label)
+            aug_img_stack = gaussian_noise.augment_images(aug_img_stack) # optional
+            h5creator.add_to_h5(aug_img_stack[:, :, :, :], labels_stack)
+        utils.copy_h5_key_to_another_h5(each_h5, new_H5_file, 'frame_nums', 'frame_nums') # copy the frame nums to the sug files
+      # combine all the
+      image_tools.split_h5_loop_segments(combine_list,
+                                         [1],
+                                         each_h5.split('.h5')[0]+'_AUG.h5',
+                                         add_numbers_to_name = False,
+                                         set_seed=0,
+                                         color_channel=True)
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ copy over the paths of the new set into one folder, the new version of above code should make this outdated $$"""
+
+from distutils.dir_util import copy_tree
+import glob
+
+a = utils.lister_it(glob("/content/*"), keep_strings='/data_')
+x = "xxxxxxxxxxxxx/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/ALL_RETRAIN_H5_data/"
+shutil.rmtree(x)
+Path(x).mkdir(parents = True, exist_ok = True)
+for k in tqdm(a):
+  Path(x).mkdir(parents = True, exist_ok = True)
+  tmp1 = x+os.path.basename(k)
+  Path(tmp1).mkdir(parents = True, exist_ok = True)
+  copy_tree(str(k), tmp1)
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$print only the directories in a folder $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+# can use this to copy the folder structure if we want to
+src = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/ALL_RETRAIN_H5_data"
+for rootdir, dirs, files in os.walk(src):
+    for subdir in dirs:
+        print(os.path.join(src, subdir))
+
+
+
+
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ Fully automate the generation of all types data folder using a single H5 file (normal with "color" channels) $$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+from whacc import utils
+from whacc import image_tools
+from keras.preprocessing.image import ImageDataGenerator
+import h5py
+import matplotlib.pyplot as plt
+from imgaug import augmenters as iaa  # optional program to further augment data
+#**********$%$%$%$%$%%$
+# v^v^v^v^v^ these indacate areas where user may want to customize like make a test set for example
+#**********$%$%$%$%$%%$
+base_dir_all = '/content/'
+
+
+full_session_h5s = "/content/gdrive/My Drive/Colab data/curation_for_auto_curator/H5_data/"
+full_session_h5s = utils.get_h5s(full_session_h5s, 0)
+b = utils.print_h5_keys(full_session_h5s[0], 1, 0)
+c = utils.lister_it(b, remove_string='MODEL')
+utils.print_list_with_inds(c)
+
+for h5_subset_file in tqdm(full_session_h5s[:4]):
+  a = h5_subset_file.split('/')[-1].split('RETRAIN_')[-1].split('.h5')[0]
+  base_h5 =  base_dir_all + 'DATA_FULL/data_'+a
+  single_frame_h5s = base_h5+'/single_frame/'
+
+  # Path(tmp_h5s).mkdir(parents = True, exist_ok = True)
+  Path(single_frame_h5s).mkdir(parents = True, exist_ok = True)
+
+  #vvvvvv single frame
+  single_name = single_frame_h5s+a+'.h5'
+  utils.reduce_to_single_frame_from_color(h5_subset_file, single_name)
+  #^^^^^^ single frame
+  #vvvvvvvv convert to all types
+  utils.make_all_H5_types(single_frame_h5s)  # auto generate all the h5 types using a single set of flat (no color) image H5
+  utils.make_alt_labels_h5s(single_frame_h5s)  # auto generate the different types of labels
+  #^^^^^^^^ convert to all types
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ transfer alt labels to the training and val set  $$"""
+
+
+x = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/ALL_RETRAIN_H5_data/"
+for k in next(os.walk(x))[1]:
+  a = utils.get_h5s(x+os.sep+k)
+  a = utils.lister_it(a, keep_strings='train')
+  src_h5 = utils.lister_it(a, '/ALT_LABELS/')[0]
+  dest_h5s = utils.lister_it(a, remove_string='/ALT_LABELS/')
+  for src_label_key in utils.print_h5_keys(src_h5, 1):
+    for dest_H5 in dest_h5s:
+      # print('from '+ src_h5 + ' to '+ dest_H5 + ' key--> '+ src_label_key)
+      utils.copy_h5_key_to_another_h5(src_h5, dest_H5, src_label_key, src_label_key)
+
+for k in next(os.walk(x))[1]:
+  a = utils.get_h5s(x+os.sep+k)
+  a = utils.lister_it(a, keep_strings='val')
+  src_h5 = utils.lister_it(a, '/ALT_LABELS/')[0]
+  dest_h5s = utils.lister_it(a, remove_string='/ALT_LABELS/')
+  for src_label_key in utils.print_h5_keys(src_h5, 1):
+    for dest_H5 in dest_h5s:
+      # print('from '+ src_h5 + ' to '+ dest_H5 + ' key--> '+ src_label_key)
+      utils.copy_h5_key_to_another_h5(src_h5, dest_H5, src_label_key, src_label_key)
+# #testing it
+# x = '/content/ALL_RETRAIN_H5_data/data_AH0698_170601_PM0121_AAAA/single_frame/train.h5'
+# L1 = get_h5_key_and_concatenate(x, 'labels')
+# L2 = get_h5_key_and_concatenate(x, '[0, 1]- (no touch, touch)')
+# all(L1==L2)
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ transfer alt labels to the 'test' set  $$"""
+
+
+x = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/DATA_FULL/"
+
+for k in next(os.walk(x))[1]:
+  a = utils.get_h5s(x+os.sep+k)
+  # a = utils.lister_it(a, keep_strings='train')
+  src_h5 = utils.lister_it(a, '/ALT_LABELS/')[0]
+  dest_h5s = utils.lister_it(a, remove_string='/ALT_LABELS/')
+  for src_label_key in utils.print_h5_keys(src_h5, 1):
+    for dest_H5 in dest_h5s:
+      # print('from \n'+ src_h5 + ' to \n'+ dest_H5 + ' \nkey--> '+ src_label_key)
+      utils.copy_h5_key_to_another_h5(src_h5, dest_H5, src_label_key, src_label_key)
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ copy over all of one h5 keys to another based on a matching string $$"""
+
+model_3_h5s = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/h5_data_withMODEL3/"
+model_3_h5s = utils.get_h5s(model_3_h5s)
+print('\n')
+to_pred_h5s = '/content/gdrive/My Drive/colab_data2/model_testing/all_data/final_predictions/ALT_LABELS_FINAL_PRED'
+to_pred_h5s = utils.get_h5s(to_pred_h5s)
+
+for src, dest in tzip(model_3_h5s, to_pred_h5s):
+  assert os.path.basename(src)[:15] == os.path.basename(dest)[:15]
+  with h5py.File(src, 'r') as h5src:
+    with h5py.File(dest, 'r+') as h5dest:
+      for key in tqdm(h5src.keys()):
+        if 'MODEL_3_' in key:
+          try:
+            h5dest.create_dataset(key, shape=np.shape(h5src[key][:]),data=h5src[key][:])
+          except:
+            del h5dest[key]
+            time.sleep(4)
+            h5dest.create_dataset(key, shape=np.shape(h5src[key][:]),data=h5src[key][:])
