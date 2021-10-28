@@ -3,17 +3,40 @@ import shutil
 import numpy as np
 from pathlib import Path
 import os
+import sys
 import glob
 from natsort import os_sorted
 import scipy.io as spio
 import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
-from tqdm import tqdm
+
 import copy
 import time
 from whacc import image_tools
 import whacc
+
+
+def isnotebook():
+    try:
+        c = str(get_ipython().__class__)
+        shell = get_ipython().__class__.__name__
+        if 'colab' in c:
+            return True
+        elif shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+
+if isnotebook():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 def four_class_labels_from_binary(x):
@@ -44,43 +67,68 @@ def copy_h5_key_to_another_h5(h5_to_copy_from, h5_to_copy_to, label_string_to_co
                 h2.create_dataset(label_string_to_copy_to, shape=np.shape(h[label_string_to_copy_from][:]),
                                   data=h[label_string_to_copy_from][:])
 
+def lister_it(in_list, keep_strings='', remove_string=None):
+    def index_list_of_strings(in_list2, cmp_string):
+        return np.asarray([cmp_string in string for string in in_list2])
 
-def lister_it(in_list, keep_strings=None, remove_string=None):
-    """
+    if isinstance(keep_strings, str): keep_strings = [keep_strings]
+    if isinstance(remove_string, str): remove_string = [remove_string]
 
-    Parameters
-    ----------
-    in_list : list
-    keep_strings : list
-    remove_string : list
+    keep_i = np.asarray([False]*len(in_list))
+    for k in keep_strings:
+        keep_i = np.vstack((keep_i, index_list_of_strings(in_list, k)))
+    keep_i = np.sum(keep_i, axis = 0)>0
 
-    Returns
-    -------
+    remove_i = np.asarray([True]*len(in_list))
+    if remove_string is not None:
+        for k in remove_string:
+            remove_i = np.vstack((remove_i, np.invert(index_list_of_strings(in_list, k))))
+        remove_i = np.product(remove_i, axis = 0)>0
 
-    """
-    if isinstance(keep_strings, str):
-        keep_strings = [keep_strings]
-    if isinstance(remove_string, str):
-        remove_string = [remove_string]
-
-    if keep_strings is None:
-        new_list = in_list
+    inds = keep_i * remove_i#np.invert(remove_i)
+    if inds.size <= 0:
+        return []
     else:
-        new_list = []
-        for L in in_list:
-            for k in keep_strings:
-                if k in L:
-                    new_list.append(L)
+        out = np.asarray(in_list)[inds]
+    return out
 
-    if remove_string is None:
-        new_list_2 = new_list
-    else:
-        new_list_2 = []
-        for L in new_list:
-            for k in remove_string:
-                if k not in L:
-                    new_list_2.append(L)
-    return new_list_2
+# def lister_it(in_list, keep_strings=None, remove_string=None):
+#     """
+#
+#     Parameters
+#     ----------
+#     in_list : list
+#     keep_strings : list
+#     remove_string : list
+#
+#     Returns
+#     -------
+#
+#     """
+#     if isinstance(keep_strings, str):
+#         keep_strings = [keep_strings]
+#     if isinstance(remove_string, str):
+#         remove_string = [remove_string]
+#
+#     if keep_strings is None:
+#         new_list = copy.deepcopy(in_list)
+#     else:
+#         new_list = []
+#         for L in in_list:
+#             for k in keep_strings:
+#                 if k in L:
+#                     new_list.append(L)
+#
+#     if remove_string is None:
+#         new_list_2 = copy.deepcopy(in_list)
+#     else:
+#         new_list_2 = []
+#         for L in new_list:
+#             for k in remove_string:
+#                 if k not in L:
+#                     new_list_2.append(L)
+#     final_list = intersect_lists([new_list_2, new_list])
+#     return final_list
 
 
 def plot_pole_tracking_max_vals(h5_file):
@@ -482,22 +530,6 @@ def loop_segments(frame_num_array):
     return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
 
 
-def isnotebook():
-    try:
-        c = str(get_ipython().__class__)
-        shell = get_ipython().__class__.__name__
-        if 'colab' in c:
-            return True
-        elif shell == 'ZMQInteractiveShell':
-            return True  # Jupyter notebook or qtconsole
-        elif shell == 'TerminalInteractiveShell':
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False  # Probably standard Python interpreter
-
-
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
@@ -826,7 +858,7 @@ def get_all_label_types_from_array(array):
     x1 = copy.deepcopy(array)  # [0, 1]- (no touch, touch)
     all_labels.append(x1)
 
-    x2 = utils.four_class_labels_from_binary(x1)  # [0, 1, 2, 3]- (no touch, touch, onset, offset)
+    x2 = four_class_labels_from_binary(x1)  # [0, 1, 2, 3]- (no touch, touch, onset, offset)
     all_labels.append(x2)
 
     x3 = copy.deepcopy(x2)
@@ -950,6 +982,22 @@ def get_in_range(H5_list, pole_up_add=200, pole_down_add=0, write_to_h5=True, re
         return all_in_range
 
 
+def define_in_range(h5_file, pole_up_set_time=0, pole_down_add_to_trigger=0, write_to_h5=True, return_in_range=False):
+    with h5py.File(h5_file, 'r+') as hf:
+        new_in_range = np.zeros_like(hf['in_range'][:])
+        fn = hf['trial_nums_and_frame_nums'][1, :]
+        for i, (i1, i2) in enumerate(loop_segments(fn)):
+            x = hf['pole_times'][:, i] + i1
+            x1 = i1 + pole_up_set_time
+            x2 = x[1] + pole_down_add_to_trigger
+            x2 = min([x2, i2])
+            new_in_range[x1:x2] = 1
+        if write_to_h5:
+            hf['in_range'][:] = new_in_range
+        if return_in_range:
+            return new_in_range
+
+
 def add_to_h5(h5_file, key, values, overwrite_if_exists=False):
     all_keys = print_h5_keys(h5_file, return_list=True, do_print=False)
     with h5py.File(h5_file, 'r+') as h:
@@ -970,13 +1018,14 @@ def bool_pred_to_class_pred_formating(pred):
     return x
 
 
-def convert_labels_back_to_binary(a, key):
+def convert_labels_back_to_binary(b, key):
+    a = copy.deepcopy(b)
     """
   a is 'bool' array (integers not float predicitons)
   key is the key name of the type of labels being inserted
   can use the key name or the string in the key either will do.
   """
-    name_dict = model_maker.label_naming_shorthand_dict()
+    name_dict = whacc.model_maker.label_naming_shorthand_dict()
     keys = list(name_dict.keys())
     if key == keys[0] or key == name_dict[keys[0]]:
         a[a >= 4] = 0
@@ -1013,3 +1062,25 @@ def update_whacc():
     out = os.popen(x).read()
     print(out)
     print('ALL DONE')
+
+
+def make_list(x, suppress_warning=False):
+    if not isinstance(x, list):
+        if not suppress_warning:
+            print("""input is supposed to be a list, converting it but user should do this to suppress this warning""")
+        x2 = [x]
+        return x2
+    else:
+        return x
+
+
+def search_sequence_numpy(arr, seq, return_type='indices'):
+    Na, Nseq = arr.size, seq.size
+    r_seq = np.arange(Nseq)
+    M = (arr[np.arange(Na - Nseq + 1)[:, None] + r_seq] == seq).all(1)
+
+    if return_type == 'indices':
+        return np.where(M)[0]
+    elif return_type == 'bool':
+        return M
+
