@@ -316,7 +316,8 @@ class PoleTracking():
             hf.create_dataset('trial_nums_and_frame_nums', data=tnf)
             hf.create_dataset('in_range', data=in_range)
             hf.create_dataset('full_file_names', data=self.ascii_video_files)
-            hf.create_dataset('frame_nums', tnf[1, :])
+            hf.create_dataset('template_img', data = self.template_image)
+            hf.create_dataset('frame_nums', data=tnf[1, :])
             hf.close()
 
         print('H5 file saving under the name ' + file_name)

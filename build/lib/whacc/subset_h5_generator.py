@@ -2,15 +2,22 @@ import h5py
 import numpy as numpy
 import matplotlib.pyplot as plt
 from whacc.utils import *
-
+import cv2
 
 class subset_h5_generator:
     """ """
-    def __init__(self, h5_img_file, label_key):
+    def __init__(self, h5_img_file, label_key_or_array):
         self.h5_img_file = h5_img_file
-        self.label_key = label_key
+        self.label_key = label_key_or_array
+        self.file_save_name = ''
         with h5py.File(self.h5_img_file, 'r') as F:
-            self.labels = F[label_key][:]
+            self.image_shape = F['images'][0].shape
+        if isinstance(self.label_key, str):
+            with h5py.File(self.h5_img_file, 'r') as F:
+                self.labels = F[label_key_or_array][:]
+        else:
+            self.labels = label_key_or_array
+
 
     def save_subset_h5_file(self, file_save_dir = None, save_name = None):
         """
@@ -29,6 +36,7 @@ class subset_h5_generator:
         if file_save_dir is None:
             file_save_dir = os.path.dirname(self.h5_img_file)
         file_save_name = file_save_dir + os.path.sep + save_name
+        self.file_save_name = file_save_name
         all_labels = self.labels
         all_inds = self.all_inds
         try:
@@ -236,3 +244,14 @@ class subset_h5_generator:
             else:
                 im_stack = numpy.vstack((im_stack, self.get_img_stack(k)))
         self.plot_pole_grab(im_stack, fig_size)
+        x2 = plt.gca().get_images()[0].get_array()
+        l = self.labels[np.asarray(up_or_down_list)].T
+        tmp1 = cv2.resize(l.astype('float32'), x2.shape[:2], interpolation=cv2.INTER_NEAREST).T
+        tmp1 = np.repeat(tmp1[:, :, None], 3,axis = 2)
+        w = self.image_shape[0]
+        for k in range(4):
+            x2[k::w, :, 1] =tmp1[::w, :, 0]*255
+            x2[k::w, :, 0] =(1-tmp1[::w, :, 0])*255
+            x2[k::w, :, 2] =0
+            plt.imshow(x2)
+

@@ -15,6 +15,9 @@ import copy
 import time
 from whacc import image_tools
 import whacc
+import platform
+import subprocess
+from scipy.signal import medfilt, medfilt2d
 
 
 def isnotebook():
@@ -68,43 +71,73 @@ def copy_h5_key_to_another_h5(h5_to_copy_from, h5_to_copy_to, label_string_to_co
                                   data=h[label_string_to_copy_from][:])
 
 
-def lister_it(in_list, keep_strings=None, remove_string=None):
-    """
+def lister_it(in_list, keep_strings='', remove_string=None):
+    if len(in_list) == 0:
+        print("in_list was empty, returning in_list")
+        return in_list
 
-    Parameters
-    ----------
-    in_list : list
-    keep_strings : list
-    remove_string : list
+    def index_list_of_strings(in_list2, cmp_string):
+        return np.asarray([cmp_string in string for string in in_list2])
 
-    Returns
-    -------
+    if isinstance(keep_strings, str): keep_strings = [keep_strings]
+    if isinstance(remove_string, str): remove_string = [remove_string]
 
-    """
-    if isinstance(keep_strings, str):
-        keep_strings = [keep_strings]
-    if isinstance(remove_string, str):
-        remove_string = [remove_string]
+    keep_i = np.asarray([False] * len(in_list))
+    for k in keep_strings:
+        keep_i = np.vstack((keep_i, index_list_of_strings(in_list, k)))
+    keep_i = np.sum(keep_i, axis=0) > 0
 
-    if keep_strings is None:
-        new_list = copy.deepcopy(in_list)
+    remove_i = np.asarray([True] * len(in_list))
+    if remove_string is not None:
+        for k in remove_string:
+            remove_i = np.vstack((remove_i, np.invert(index_list_of_strings(in_list, k))))
+        remove_i = np.product(remove_i, axis=0) > 0
+
+    inds = keep_i * remove_i  # np.invert(remove_i)
+    if inds.size <= 0:
+        return []
     else:
-        new_list = []
-        for L in in_list:
-            for k in keep_strings:
-                if k in L:
-                    new_list.append(L)
+        out = np.asarray(in_list)[inds]
+    return out
 
-    if remove_string is None:
-        new_list_2 = copy.deepcopy(in_list)
-    else:
-        new_list_2 = []
-        for L in new_list:
-            for k in remove_string:
-                if k not in L:
-                    new_list_2.append(L)
-    final_list = intersect_lists([new_list_2, new_list])
-    return final_list
+
+# def lister_it(in_list, keep_strings=None, remove_string=None):
+#     """
+#
+#     Parameters
+#     ----------
+#     in_list : list
+#     keep_strings : list
+#     remove_string : list
+#
+#     Returns
+#     -------
+#
+#     """
+#     if isinstance(keep_strings, str):
+#         keep_strings = [keep_strings]
+#     if isinstance(remove_string, str):
+#         remove_string = [remove_string]
+#
+#     if keep_strings is None:
+#         new_list = copy.deepcopy(in_list)
+#     else:
+#         new_list = []
+#         for L in in_list:
+#             for k in keep_strings:
+#                 if k in L:
+#                     new_list.append(L)
+#
+#     if remove_string is None:
+#         new_list_2 = copy.deepcopy(in_list)
+#     else:
+#         new_list_2 = []
+#         for L in new_list:
+#             for k in remove_string:
+#                 if k not in L:
+#                     new_list_2.append(L)
+#     final_list = intersect_lists([new_list_2, new_list])
+#     return final_list
 
 
 def plot_pole_tracking_max_vals(h5_file):
@@ -362,7 +395,7 @@ def get_files(base_dir, search_term=''):
     search_term :
         
 
-    Returns
+    Returnslister_it
     -------
 
     """
@@ -479,7 +512,7 @@ def inds_around_inds(x, N):
     return a.astype('int')
 
 
-def loop_segments(frame_num_array):
+def loop_segments(frame_num_array, returnaslist=False):
     """
 
     Parameters
@@ -503,7 +536,10 @@ def loop_segments(frame_num_array):
     frame_num_array = [0] + frame_num_array
     frame_num_array = np.cumsum(frame_num_array)
     frame_num_array = frame_num_array.astype(int)
-    return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
+    if returnaslist:
+        return [list(frame_num_array[:-1]), list(frame_num_array[1:])]
+    else:
+        return zip(list(frame_num_array[:-1]), list(frame_num_array[1:]))
 
 
 ##_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*##
@@ -699,7 +735,7 @@ def stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0):
 
     Parameters
     ----------
-    f : h5 file with SINGLE FRAMES this is ment to be a test program. if used long term I will change this part
+    f : h5 file with SINGLE FRAMES this is meant to be a test program. if used long term I will change this part
     f2 :
     buffer :
     shift_to_the_right_by :
@@ -762,13 +798,19 @@ def copy_over_all_non_image_keys(f, f2):
     k_names = lister_it(k_names, remove_string='MODEL_')
     k_names = lister_it(k_names, remove_string='images')
     with h5py.File(f, 'r+') as h:
-        for kn in k_names:
-            try:
-                copy_h5_key_to_another_h5(f, f2, kn, kn)
-            except:
-                del h[kn]
-                time.sleep(2)
-                copy_h5_key_to_another_h5(f, f2, kn, kn)
+        with h5py.File(f2, 'r+') as h2:
+            for kn in k_names:
+                try:
+                    h2.create_dataset(kn, data=h[kn])
+                except:
+                    del h2[kn]
+                    h2.create_dataset(kn, data=h[kn])
+            # try:
+            #     copy_h5_key_to_another_h5(f, f2, kn, kn)
+            # except:
+            #     del h[kn]
+            #     # time.sleep(2)
+            #     copy_h5_key_to_another_h5(f, f2, kn, kn)
     if 'frame_nums' not in k_names and 'trial_nums_and_frame_nums' in k_names:
         tnfn = image_tools.get_h5_key_and_concatenate([f], 'trial_nums_and_frame_nums')
         with h5py.File(f2, 'r+') as h:
@@ -778,6 +820,15 @@ def copy_over_all_non_image_keys(f, f2):
                 del h['frame_nums']
                 time.sleep(2)
                 h.create_dataset('frame_nums', data=(tnfn[1, :]).astype(int))
+
+
+def force_write_to_h5(h5_file, data, data_name):
+    with h5py.File(h5_file, 'r+') as h:
+        try:
+            h.create_dataset(data_name, data=data)
+        except:
+            del h[data_name]
+            h.create_dataset(data_name, data=data)
 
 
 def reduce_to_single_frame_from_color(f, f2):
@@ -1043,10 +1094,11 @@ def update_whacc():
 def make_list(x, suppress_warning=False):
     if not isinstance(x, list):
         if not suppress_warning:
-            raise ValueError(
-                """input is supposed to be a list, converting it but user should do this to suppress this warning""")
+            print("""input is supposed to be a list, converting it but user should do this to suppress this warning""")
         x2 = [x]
         return x2
+    else:
+        return x
 
 
 def search_sequence_numpy(arr, seq, return_type='indices'):
@@ -1058,3 +1110,161 @@ def search_sequence_numpy(arr, seq, return_type='indices'):
         return np.where(M)[0]
     elif return_type == 'bool':
         return M
+
+
+def find_trials_with_suspicious_predictions(frame_nums, pred_bool, tmp_weights=[3, 3, 2, 1]):
+    all_lens = []
+    bins = len(tmp_weights) + 1
+    for i, (k1, k2) in enumerate(loop_segments(frame_nums)):
+        vals = pred_bool[k1:k2]
+        a, b = group_consecutives(vals, step=0)
+        y, x = np.histogram([len(k) for k in a], np.linspace(1, bins, bins))
+        all_lens.append(y)
+    all_lens = np.asarray(all_lens)
+
+    all_lens = all_lens * np.asarray(tmp_weights)
+    sorted_worst_estimated_trials = np.flip(np.argsort(np.nanmean(all_lens, axis=1)))
+    return sorted_worst_estimated_trials
+
+
+def open_folder(path):
+    if platform.system() == "Windows":
+        os.startfile(path)
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
+
+def medfilt_confidence_scores(pred_bool_in, kernel_size_in):
+    if pred_bool_in.shape[1] == 1:
+        pred_bool_out = medfilt(copy.deepcopy(pred_bool_in), kernel_size=kernel_size_in)
+    else:
+        pred_bool_out = medfilt2d(copy.deepcopy(pred_bool_in), kernel_size=[kernel_size_in, 1])
+    return pred_bool_out
+
+
+def confidence_score_to_class(pred_bool_in, thresh_in=0.5):
+    if pred_bool_in.shape[1] == 1:
+        pred_bool_out = ((pred_bool_in > thresh_in) * 1).flatten()
+    else:
+        pred_bool_out = np.argmax(pred_bool_in, axis=1)
+    #     NOTE: threshold is not used for the multi class models
+    return pred_bool_out
+
+
+def process_confidence_scores(pred_bool_in, key_name_in, thresh_in=0.5, kernel_size_in=1):
+    pred_bool_out = medfilt_confidence_scores(pred_bool_in, kernel_size_in)
+    pred_bool_out = confidence_score_to_class(pred_bool_out, thresh_in)
+    L_key_ = '_'.join(key_name_in.split('__')[3].split(' '))
+    pred_bool_out = convert_labels_back_to_binary(pred_bool_out, L_key_)
+    return pred_bool_out
+
+
+def copy_folder_structure(src, dst):
+    src = os.path.abspath(src)
+    src_prefix = len(src) + len(os.path.sep)
+    Path(dst).mkdir(parents=True, exist_ok=True)
+    for root, dirs, files in os.walk(src):
+        for dirname in dirs:
+            dirpath = os.path.join(dst, root[src_prefix:], dirname)
+            Path(dirpath).mkdir(parents=True, exist_ok=True)
+
+
+def copy_file_filter(src, dst, keep_strings='', remove_string=None, overwrite=False,
+                     just_print_what_will_be_copied=False, disable_tqdm=False, return_list_of_files=False):
+    """
+
+    Parameters
+    ----------
+    return_list_of_files :
+    src : source folder
+    dst : destination folder
+    keep_strings : see utils.lister_it, list of strings to match in order to copy
+    remove_string : see utils.lister_it, list of strings to match in order to not copy
+    overwrite : will overwrite files if true
+    just_print_what_will_be_copied : can just print what will be copied to be sure it is correct
+    disable_tqdm : if True it will prevent the TQDM loading bar
+
+    Examples
+    ________
+    copy_file_filter('/Users/phil/Desktop/FAKE_full_data', '/Users/phil/Desktop/aaaaaaaaaa', keep_strings='/3lag/',
+                 remove_string=None, overwrite=True, just_print_what_will_be_copied=False)
+    Returns
+    -------
+
+    """
+    src = src.rstrip(os.sep) + os.sep
+    dst = dst.rstrip(os.sep) + os.sep
+
+    all_files_and_dirs = get_files(src, search_term='*')
+    to_copy = lister_it(all_files_and_dirs, keep_strings=keep_strings, remove_string=remove_string)
+
+    if just_print_what_will_be_copied:
+        _ = [print(str(i) + ' ' + k) for i, k in enumerate(to_copy)]
+        if return_list_of_files:
+            return to_copy, None
+        else:
+            return
+
+    to_copy2 = []  # this is so I can tqdm the files and not the folders which would screw with the average copy time.
+    for k in to_copy:
+        k2 = dst.join(k.split(src))
+        if os.path.isdir(k):
+            Path(k2).mkdir(parents=True, exist_ok=True)
+        else:
+            to_copy2.append(k)
+    final_copied = []
+    for k in tqdm(to_copy2, disable=disable_tqdm):
+        k2 = dst.join(k.split(src))
+        final_copied.append(k2)
+        if overwrite or not os.path.isfile(k2):
+            if os.path.isfile(k2):
+                os.remove(k2)
+            Path(os.path.dirname(k2)).mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(k, k2)
+        elif not overwrite:
+            print('overwrite = False: file exists, skipping--> ' + k2)
+    if return_list_of_files:
+        return to_copy2, final_copied
+
+
+def copy_alt_labels_based_on_directory(file_list, alt_label_folder_name='ALT_LABELS'):
+    h5_imgs = []
+    h5_labels = []
+    inds_of_files = []
+    for i, k in enumerate(file_list):
+        k = k.rstrip(os.sep)
+        if os.path.isfile(k):
+            fn = os.path.basename(k)
+            alt_labels_dir = os.sep.join(k.split(os.sep)[:-2]) + os.sep + alt_label_folder_name + os.sep
+            h5_list = get_h5s(alt_labels_dir, 0)
+            if 'train' in fn.lower():
+                h5_list = lister_it(h5_list, keep_strings='train')
+            elif 'val' in fn.lower():
+                h5_list = lister_it(h5_list, keep_strings='val')
+            if len(h5_list) == 1:
+                h5_imgs.append(k)
+                h5_labels.append(h5_list[0])
+                inds_of_files.append(i)
+            else:
+                print('File name ' + fn + ' could not find valid match')
+                break
+    return h5_imgs, h5_labels, inds_of_files
+
+
+def np_stats(in_arr):
+    print('\nmin', np.min(in_arr))
+    print('max', np.max(in_arr))
+    print('mean', np.mean(in_arr))
+    print('shape', in_arr.shape)
+    print('len of unique', len(np.unique(in_arr)))
+    print('type', type(in_arr))
+    try:
+        print('Dtype ', in_arr.dtype)
+    except:
+        pass
+
+
+def h5_key_exists(h5_in, key_in):
+    return key_in in print_h5_keys(h5_in, return_list=True, do_print=False)

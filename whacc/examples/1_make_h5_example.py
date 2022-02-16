@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 mp4_path = "/Users/phil/Dropbox/Autocurator/testing_data/MP4s"
 mp4_path = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/"
 mp4_path = "/Users/phil/Downloads/untitled folder 2/"
+mp4_path = "/Users/phil/Dropbox/HIRES_LAB/curation_for_auto_curator/Data/Jon/AH0667/170317/"
+mp4_path = '/Users/phil/Downloads/test_pole_tracker/'
 # mp4_path = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/delete_after_oct_2021/"
 search_term = '*.mp4'
 ##
@@ -21,7 +23,7 @@ for i, video_directory in enumerate(folders_with_MP4s):
         PT[i] = PoleTracking(video_directory=video_directory, template_png_full_name=template_img_full_name[0])
     else:
         PT[i] = PoleTracking(video_directory=video_directory)  # create the class
-        PT[i].cut_out_pole_template(crop_size=[61, 61], frame_num=1200,
+        PT[i].cut_out_pole_template(crop_size=[61, 61], frame_num=2000,
                                     file_ind=2)  # cut out template image## 270 , 120# 270, 235# 187 , 249# 168 , 276
         PT[i].save_template_img(cust_save_dir=PT[i].video_directory)  # save the template image
 

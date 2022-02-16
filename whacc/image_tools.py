@@ -7,6 +7,9 @@ import copy
 import time
 import os
 from whacc import utils
+from pathlib import Path
+import warnings
+import pdb
 
 
 def isnotebook():
@@ -154,7 +157,7 @@ def del_h5_with_term(h5_list, str_2_cmp):
 
 def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, chunk_size=10000,
                            add_numbers_to_name=True,
-                           disable_TQDM=False, set_seed=None, color_channel=True):
+                           disable_TQDM=False, set_seed=None, color_channel=True, force_random_each_frame=False):
     """Randomly splits images from a list of H5 file(s) into len(split_percentages) different H5 files.
 
     Parameters
@@ -195,6 +198,9 @@ def split_h5_loop_segments(h5_to_split_list, split_percentages, temp_base_name, 
             temp_base_name[i] = temp_base_name[i][:-3]
 
     frame_num_array_list = get_h5_key_and_dont_concatenate(h5_to_split_list, 'frame_nums')
+    if force_random_each_frame:
+        for i, k in enumerate(frame_num_array_list):
+            frame_num_array_list[i] = list(np.ones(np.sum(k)).astype(int))
 
     total_frames = len(get_h5_key_and_concatenate(h5_to_split_list, key_name='labels'))
     cnt1 = 0
@@ -378,8 +384,14 @@ class h5_iterative_creator():
                  max_img_width=61,
                  close_and_open_on_each_iteration=True,
                  color_channel=True,
-                 add_to_existing_H5=False):
-
+                 add_to_existing_H5=False,
+                 ignore_image_range_warning=False,
+                 dtype_img=h5py.h5t.STD_U8BE,
+                 dtype_labels=h5py.h5t.STD_I32LE):
+        self.dtype_img = dtype_img
+        self.dtype_labels = dtype_labels
+        self.ignore_image_range_warning = False
+        self.max_shape = None
         if not close_and_open_on_each_iteration:
             print('**remember to CLOSE the H5 file when you are done!!!**')
         if overwrite_if_file_exists and os.path.isfile(h5_new_full_file_name):
@@ -415,6 +427,25 @@ class h5_iterative_creator():
         if self.close_it:
             self.open_or_close_h5('close')
 
+    def check_images_uint8(self, images):
+        if not self.ignore_image_range_warning:
+            min_img = np.min(images)
+            max_img = np.max(images)
+            if min_img < 0 or max_img > 255:
+                warnings.warn(
+                    'image data must be uint8 compatible, 0 to 255, but given range is ' + str(min_img) + ' to ' + str(
+                        max_img))
+            if -1 <= min_img <= 1 and -1 <= max_img <= 1:
+                warnings.warn(
+                    'image data must be uint8 compatible, 0 to 255, but given range is ' + str(min_img) + ' to ' + str(
+                        max_img))
+                warnings.warn('it seems your values may be formatted between -1 and 1')
+            if 0 <= min_img <= 1 and 0 <= max_img <= 1:
+                warnings.warn(
+                    'image data must be uint8 compatible, 0 to 255, but given range is ' + str(min_img) + ' to ' + str(
+                        max_img))
+                warnings.warn('it seems your values may be formatted between 0 and 1')
+
     def _create_h5(self, images, labels):
         """
         Parameters
@@ -422,27 +453,35 @@ class h5_iterative_creator():
         images :
 
         labels :
-        
+
         """
+        self.check_images_uint8(images)
+        if self.max_shape is None:
+            # max_shape = (None, self.max_img_height, self.max_img_width, 3)
+            max_shape = list(images.shape)
+            max_shape[0] = None
+
         # if set_multiplier:
         self.hf_file.create_dataset("multiplier", [1], h5py.h5t.STD_I32LE, data=images.shape[0])
         if self.color_channel:
             self.hf_file.create_dataset('images',
                                         np.shape(images),
-                                        h5py.h5t.STD_U8BE,
-                                        maxshape=(None, self.max_img_height, self.max_img_width, 3),
+                                        self.dtype_img,
+                                        # jk need this to not explode the size of the data... commented this out because I wanted to use not 0-255 numbers
+                                        maxshape=max_shape,
                                         chunks=True,
                                         data=images)
         else:
             self.hf_file.create_dataset('images',
                                         np.shape(images),
-                                        h5py.h5t.STD_U8BE,
-                                        maxshape=(None, self.max_img_height, self.max_img_width),
+                                        self.dtype_img,
+                                        # jk need this to not explode the size of the data... commented this out because I wanted to use not 0-255 numbers
+                                        maxshape=max_shape,
                                         chunks=True,
                                         data=images)
         self.hf_file.create_dataset('labels',
                                     np.shape(labels),
-                                    h5py.h5t.STD_I32LE,
+                                    self.dtype_labels,  # ....... commented this out because we may want floats....
                                     maxshape=(None,),
                                     chunks=True,
                                     data=labels)
@@ -463,6 +502,7 @@ class h5_iterative_creator():
 
         
         """
+        self.check_images_uint8(images)
         self.hf_file['images'].resize(self.hf_file['images'].shape[0] + images.shape[0], axis=0)
         self.hf_file['labels'].resize(self.hf_file['labels'].shape[0] + labels.shape[0], axis=0)
 
@@ -705,9 +745,8 @@ def get_total_frame_count(h5_file_list):
     """
     total_frame_count = []
     for H5_file in h5_file_list:
-        H5 = h5py.File(H5_file, 'r')
-        images = H5['images']
-        total_frame_count.append(images.shape[0])
+        with h5py.File(H5_file, 'r') as H5:
+            total_frame_count.append(H5['images'].shape[0])
 
     return total_frame_count
 
@@ -771,7 +810,7 @@ def reset_to_first_frame_for_each_file_ind(file_inds_for_H5_extraction):
 class ImageBatchGenerator(keras.utils.Sequence):
     """ """
 
-    def __init__(self, batch_size, h5_file_list, label_key = 'labels'):
+    def __init__(self, batch_size, h5_file_list, label_key='labels'):
         h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
         num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
         file_inds_for_H5_extraction = batch_size_file_ind_selector(
@@ -955,3 +994,947 @@ def image_transform_(IMG_SIZE, raw_X):
     rgb_tensor = tf.image.resize(rgb_tensor, (IMG_SIZE, IMG_SIZE))  # resizing
     IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
     return rgb_tensor
+
+
+class ImageBatchGenerator(keras.utils.Sequence):
+    """ """
+
+    def __init__(self, batch_size, h5_file_list, label_key='labels'):
+        h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
+        num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
+        file_inds_for_H5_extraction = batch_size_file_ind_selector(
+            num_frames_in_all_H5_files, batch_size)
+        subtract_for_index = reset_to_first_frame_for_each_file_ind(
+            file_inds_for_H5_extraction)
+        # self.to_fit = to_fit #set to True to return XY and False to return X
+        self.label_key = label_key
+        self.batch_size = batch_size
+        self.H5_file_list = h5_file_list
+        self.num_frames_in_all_H5_files = num_frames_in_all_H5_files
+        self.file_inds_for_H5_extraction = file_inds_for_H5_extraction
+        self.subtract_for_index = subtract_for_index
+        self.IMG_SIZE = 96
+
+    def __len__(self):
+        return len(self.file_inds_for_H5_extraction)
+
+    def __getitem__(self, num_2_extract):
+        b = self.batch_size
+        h = self.H5_file_list
+        i = self.file_inds_for_H5_extraction
+        H5_file = h[np.int(i[num_2_extract])]
+        with h5py.File(H5_file, 'r') as H5:
+            # H5 = h5py.File(H5_file, 'r')
+
+            images = H5['images']
+            num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+            raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+            rgb_tensor = self.image_transform(raw_X)
+
+            labels_tmp = H5[self.label_key]
+            raw_Y = labels_tmp[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+            H5.close()
+        return rgb_tensor, raw_Y
+
+    # def __getitem__(self, num_2_extract):
+    #     b = self.batch_size
+    #     h = self.H5_file_list
+    #     i = self.file_inds_for_H5_extraction
+    #     H5_file = h[np.int(i[num_2_extract])]
+    #     H5 = h5py.File(H5_file, 'r')
+    #     #  list(H5.keys())
+    #
+    #     images = H5['images']
+    #     num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+    #     raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+    #     rgb_tensor = self.image_transform(raw_X)
+    #
+    #     # if self.to_fit:
+    #     #   labels_tmp = H5[self.label_key]
+    #     #   raw_Y = labels_tmp[b*num_2_extract_mod:b*(num_2_extract_mod+1)]
+    #     #   return rgb_tensor, raw_Y
+    #     # else:
+    #     return rgb_tensor
+
+    def getXandY(self, num_2_extract):
+        """
+
+        Parameters
+        ----------
+        num_2_extract :
+
+
+        Returns
+        -------
+
+
+        """
+        b = self.batch_size
+        h = self.H5_file_list
+        i = self.file_inds_for_H5_extraction
+        H5_file = h[np.int(i[num_2_extract])]
+        H5 = h5py.File(H5_file, 'r')
+        #  list(H5.keys())
+
+        images = H5['images']
+        num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+        raw_X = images[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+        rgb_tensor = self.image_transform(raw_X)
+        labels_tmp = H5[self.label_key]
+        raw_Y = labels_tmp[b * num_2_extract_mod:b * (num_2_extract_mod + 1)]
+        return rgb_tensor, raw_Y
+
+    def image_transform(self, raw_X):
+        """input num_of_images x H x W, image input must be grayscale
+        MobileNetV2 requires certain image dimensions
+        We use N x 61 x 61 formated images
+        self.IMG_SIZE is a single number to change the images into, images must be square
+
+        Parameters
+        ----------
+        raw_X :
+
+
+        Returns
+        -------
+
+
+        """
+        # rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+        # rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+        # rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
+        # rgb_tensor = tf.image.resize(rgb_tensor, (self.IMG_SIZE, self.IMG_SIZE))  # resizing
+        # self.IMG_SHAPE = (self.IMG_SIZE, self.IMG_SIZE, 3)
+        # return rgb_tensor
+        if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
+            rgb_batch = copy.deepcopy(raw_X)
+        else:
+            rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+        rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+        rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
+        rgb_tensor = tf.image.resize(rgb_tensor, (self.IMG_SIZE, self.IMG_SIZE))  # resizing
+        self.IMG_SHAPE = (self.IMG_SIZE, self.IMG_SIZE, 3)
+        return rgb_tensor
+
+    def plot_batch_distribution(self):
+        """ """
+        # randomly select a batch and generate images and labels
+        batch_num = np.random.choice(np.arange(0, self.__len__()))
+        samp_x, samp_y = self.getXandY(batch_num)
+
+        # look at the distribution of classes
+        plt.pie([1 - np.mean(samp_y), np.mean(samp_y)],
+                labels=['non-touch frames', 'touch frames'], autopct='%1.1f%%', )
+        plt.title('class distribution from batch ' + str(batch_num))
+        plt.show()
+
+        # generate indices for positive and negative classes
+        images_to_sample = 20
+        neg_class = [i for i, val in enumerate(samp_y) if val == 0]
+        pos_class = [i for i, val in enumerate(samp_y) if val == 1]
+        neg_index = np.random.choice(neg_class, images_to_sample)
+        pos_index = np.random.choice(pos_class, images_to_sample)
+
+        # plot sample positive and negative class images
+        plt.figure(figsize=(10, 10))
+        samp_x = (samp_x + 1) / 2
+        for i in range(images_to_sample):
+            plt.subplot(5, 10, i + 1)
+            plt.xticks([])
+            plt.yticks([])
+            plt.grid(False)
+            _ = plt.imshow(samp_x[neg_index[i]])
+            plt.xlabel('0')
+
+            plt.subplot(5, 10, images_to_sample + i + 1)
+            plt.xticks([])
+            plt.yticks([])
+            plt.grid(False)
+            plt.imshow(samp_x[pos_index[i]])
+            plt.xlabel('1')
+        plt.suptitle('sample images from batch  ' + str(batch_num))
+        plt.show()
+
+
+def image_transform_(IMG_SIZE, raw_X):
+    """
+    input num_of_images x H x W, image input must be grayscale
+    MobileNetV2 requires certain image dimensions
+    We use N x 61 x 61 formated images
+    self.IMG_SIZE is a single number to change the images into, images must be square
+
+    Parameters
+    ----------
+    raw_X :
+
+
+    Returns
+    -------
+
+
+    """
+
+    if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
+        rgb_batch = copy.deepcopy(raw_X)
+    else:
+        rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+    rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+    rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
+    rgb_tensor = tf.image.resize(rgb_tensor, (IMG_SIZE, IMG_SIZE))  # resizing
+    IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
+    return rgb_tensor
+
+
+# finished extractor........
+
+
+# lstm_len = 5
+#
+# batch_size = 10
+# num_2_extract = 24
+
+
+class ImageBatchGenerator_simple(keras.utils.Sequence):
+
+
+    def __init__(self, batch_size, h5_file_list, label_key='labels', IMG_SIZE=None):
+
+        h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
+        num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
+        file_inds_for_H5_extraction = batch_size_file_ind_selector(num_frames_in_all_H5_files, batch_size)
+        subtract_for_index = reset_to_first_frame_for_each_file_ind(file_inds_for_H5_extraction)
+        self.label_key = label_key
+        self.batch_size = batch_size
+        self.H5_file_list = h5_file_list
+        self.num_frames_in_all_H5_files = num_frames_in_all_H5_files
+        self.file_inds_for_H5_extraction = file_inds_for_H5_extraction
+        self.subtract_for_index = subtract_for_index
+        self.IMG_SIZE = IMG_SIZE
+
+    def image_transform(self, raw_X):
+        if len(raw_X.shape) >= 4 and raw_X.shape[-1] == 3:
+            rgb_batch = copy.deepcopy(raw_X)
+        else:
+            rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+        rgb_tensor = rgb_batch
+        rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+        rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2
+        if self.IMG_SIZE is not None:
+            if len(raw_X.shape) <= 4:
+                rgb_tensor = tf.image.resize(rgb_tensor, (self.IMG_SIZE, self.IMG_SIZE))  # resizing
+            elif len(raw_X.shape) == 5:
+                s = list(raw_X.shape)
+                s[-3:-1] = [self.IMG_SIZE, self.IMG_SIZE]
+                new_img = np.zeros(s).astype('float32')
+                for lstm_i in range(raw_X.shape[1]):
+                    new_img[:, lstm_i, :, :, :] = tf.image.resize(rgb_tensor[:, lstm_i, ...],
+                                                                  (self.IMG_SIZE, self.IMG_SIZE)).numpy()
+                rgb_tensor = new_img
+            else:
+                assert 1 == 0, "shape is screwed up..."
+        # rgb_tensor = tf.cast(rgb_tensor, np.uint8)
+        # self.IMG_SHAPE = (self.IMG_SIZE, self.IMG_SIZE, 3)
+        return rgb_tensor
+
+    def __getitem__(self, num_2_extract):
+        h = self.H5_file_list
+        i = self.file_inds_for_H5_extraction
+        H5_file = h[np.int(i[num_2_extract])]
+        num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+        i1 = num_2_extract_mod * self.batch_size
+        i2 = num_2_extract_mod * self.batch_size + self.batch_size
+        with h5py.File(H5_file, 'r') as h:
+            out = h['images'][i1:i2]
+            out = self.image_transform(out)
+            raw_Y = h[self.label_key][i1:i2]
+            return out, raw_Y
+
+    def __len__(self):
+        return len(self.file_inds_for_H5_extraction)
+
+    def getXandY(self, num_2_extract):
+        rgb_tensor, raw_Y = self.__getitem__(num_2_extract)
+        return rgb_tensor, raw_Y
+
+
+class ImageBatchGenerator_LSTM(keras.utils.Sequence):
+    """ """
+
+    def __init__(self, lstm_len, batch_size, h5_file_list, label_key='labels', IMG_SIZE=96):
+        assert lstm_len % 2 == 1, "number of images must be odd"
+        h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
+        num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
+        file_inds_for_H5_extraction = batch_size_file_ind_selector(
+            num_frames_in_all_H5_files, batch_size)
+        subtract_for_index = reset_to_first_frame_for_each_file_ind(
+            file_inds_for_H5_extraction)
+        # self.to_fit = to_fit #set to True to return XY and False to return X
+        self.label_key = label_key
+        self.batch_size = batch_size
+        self.H5_file_list = h5_file_list
+        self.num_frames_in_all_H5_files = num_frames_in_all_H5_files
+        self.file_inds_for_H5_extraction = file_inds_for_H5_extraction
+        self.subtract_for_index = subtract_for_index
+        self.IMG_SIZE = IMG_SIZE
+        self.lstm_len = lstm_len
+        self.get_frame_edges()
+
+    def get_frame_edges(self):
+        self.all_edges_list = []
+        b = self.lstm_len // 2
+        s = [b * 2, self.lstm_len, self.IMG_SIZE, self.IMG_SIZE, 3]
+        for H5_file in self.H5_file_list:
+            with h5py.File(H5_file,
+                           'r') as h:  # 0(0, 1) 1(0) 3998(-1) 3999(-2, -1) ...  4000(0, 1) 4001(0) 7998(-1) 7999(-2, -1) #0,0     0,1     1,0     3998,-1     3999,-2     3999,-1
+                full_edges_mask = np.ones(s)
+                edge_ind = np.flip(np.arange(1, b + 1))
+                for i in np.arange(1, b + 1):
+                    full_edges_mask[i - 1, :edge_ind[i - 1], ...] = np.zeros_like(
+                        full_edges_mask[i - 1, :edge_ind[i - 1], ...])
+                    full_edges_mask[-i, -edge_ind[i - 1]:, ...] = np.zeros_like(
+                        full_edges_mask[-i, -edge_ind[i - 1]:, ...])
+                all_edges = []
+                for i1, i2 in utils.loop_segments(h['frame_nums']):  # 0, 1, 3998, 3999 ; 4000, 4001, 7998, 7999; ...
+                    edges = (np.asarray([[i1], [i2 - b]]) + np.arange(0, b).T).flatten()
+                    all_edges.append(edges)
+                all_edges = np.asarray(all_edges)
+            self.all_edges_list.append(all_edges)
+            full_edges_mask = full_edges_mask.astype(int)
+            self.full_edges_mask = full_edges_mask == 0
+
+    def __getitem__(self, num_2_extract):
+        h = self.H5_file_list
+        i = self.file_inds_for_H5_extraction
+        all_edges = self.all_edges_list[np.int(i[num_2_extract])]
+        H5_file = h[np.int(i[num_2_extract])]
+        num_2_extract_mod = num_2_extract - self.subtract_forImageBatchGenerator_feature_array_index[num_2_extract]
+        with h5py.File(H5_file, 'r') as h:
+            b = self.lstm_len // 2
+            tot_len = h['images'].shape[0]
+            assert tot_len - b > self.batch_size, "reduce batch size to be less than total length of images minus floor(lstm_len) - 1, MAX->" + str(
+                tot_len - b - 1)
+            i1 = num_2_extract_mod * self.batch_size - b
+            i2 = num_2_extract_mod * self.batch_size + self.batch_size + b
+            edge_left_trigger = abs(min(i1, 0))
+            edge_right_trigger = min(abs(min(tot_len - i2, 0)), b)
+            x = h['images'][max(i1, 0):min(i2, tot_len)]
+            if edge_left_trigger + edge_right_trigger > 0:  # in case of edge cases
+                pad_shape = list(x.shape)
+                pad_shape[0] = edge_left_trigger + edge_right_trigger
+                pad = np.zeros(pad_shape).astype('uint8')
+                if edge_left_trigger > edge_right_trigger:
+                    x = np.concatenate((pad, x), axis=0)
+                else:
+                    x = np.concatenate((x, pad), axis=0)
+            x = self.image_transform(x)
+            s = list(x.shape)
+            s.insert(1, self.lstm_len)
+            out = np.zeros(s).astype('float32')  # before was uint8
+            # out = tf.cast(out, tf.float32)
+
+            for i in range(self.lstm_len):
+                i1 = max(0, b - i)
+                i2 = min(s[0], s[0] + b - i)
+                i3 = max(0, i - b)
+                i4 = min(s[0], s[0] + i - b)
+                # print('take ', i3,' to ',  i4, ' and place in ', i1,' to ', i2)
+                out[i1:i2, i, ...] = x[i3:i4, ...]
+            out = out[b:s[0] - b, ...]
+            i1 = num_2_extract_mod * self.batch_size
+            i2 = num_2_extract_mod * self.batch_size + self.batch_size
+            raw_Y = h[self.label_key][i1:i2]
+            # black out edges from frame to frame
+            adjust_these_edge_frames = np.intersect1d(all_edges.flatten(), np.arange(i1, i2))
+            for atef in adjust_these_edge_frames:
+                # mask_ind = np.where(atef == all_edges)[1][0]
+                # out[atef] = out[atef] * (self.full_edges_mask[mask_ind]
+
+                mask_ind = np.where(atef == all_edges)[1][0]
+                mask_ = self.full_edges_mask[mask_ind]
+                out[atef - i1][mask_] = -1
+            return out, raw_Y
+
+    # gray mask(set array to -1 not 0 ),DONE
+    # doesnt fill the edges as expected, DONE
+    # outputs format 0-255 not -1 to 1 DONE this was just custom code not from image_tools
+    # need to test this with uneven frames
+    def __len__(self):
+        return len(self.file_inds_for_H5_extraction)
+
+    def getXandY(self, num_2_extract):
+        """
+
+        Parameters
+        ----------
+        num_2_extract :
+
+
+        Returns
+        -------
+
+        """
+        rgb_tensor, raw_Y = self.__getitem__(num_2_extract)
+        return rgb_tensor, raw_Y
+
+    def image_transform(self, raw_X):
+        """input num_of_images x H x W, image input must be grayscale
+        MobileNetV2 requires certain image dimensions
+        We use N x 61 x 61 formated images
+        self.IMG_SIZE is a single number to change the images into, images must be square
+
+        Parameters
+        ----------
+        raw_X :
+
+
+        Returns
+        -------
+
+
+        """
+        if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
+            rgb_batch = copy.deepcopy(raw_X)
+        else:
+            rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+        rgb_tensor = rgb_batch
+        # rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+        rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2 #commented before
+        rgb_tensor = tf.image.resize(rgb_tensor, (self.IMG_SIZE, self.IMG_SIZE))  # resizing
+        # rgb_tensor = tf.cast(rgb_tensor, np.uint8)# un commented before
+        self.IMG_SHAPE = (self.IMG_SIZE, self.IMG_SIZE, 3)
+        return rgb_tensor
+
+
+class ImageBatchGenerator_LSTM_2(keras.utils.Sequence):
+    """ """
+
+    def __init__(self, lstm_len, batch_size, h5_file_list, label_key='labels', IMG_SIZE=96):
+        assert lstm_len % 2 == 1, "number of images must be odd"
+        h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
+        num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
+        file_inds_for_H5_extraction = batch_size_file_ind_selector(
+            num_frames_in_all_H5_files, batch_size)
+        subtract_for_index = reset_to_first_frame_for_each_file_ind(
+            file_inds_for_H5_extraction)
+        # self.to_fit = to_fit #set to True to return XY and False to return X
+        self.label_key = label_key
+        self.batch_size = batch_size
+        self.H5_file_list = h5_file_list
+        self.num_frames_in_all_H5_files = num_frames_in_all_H5_files
+        self.file_inds_for_H5_extraction = file_inds_for_H5_extraction
+        self.subtract_for_index = subtract_for_index
+        self.IMG_SIZE = IMG_SIZE
+        self.lstm_len = lstm_len
+        self.get_frame_edges()
+
+    def get_frame_edges(self):
+        self.all_edges_list = []
+        b = self.lstm_len // 2
+        s = [b * 2, self.lstm_len, self.IMG_SIZE, self.IMG_SIZE, 3]
+        for H5_file in self.H5_file_list:
+            with h5py.File(H5_file,
+                           'r') as h:  # 0(0, 1) 1(0) 3998(-1) 3999(-2, -1) ...  4000(0, 1) 4001(0) 7998(-1) 7999(-2, -1) #0,0     0,1     1,0     3998,-1     3999,-2     3999,-1
+                full_edges_mask = np.ones(s)
+                edge_ind = np.flip(np.arange(1, b + 1))
+                for i in np.arange(1, b + 1):
+                    full_edges_mask[i - 1, :edge_ind[i - 1], ...] = np.zeros_like(
+                        full_edges_mask[i - 1, :edge_ind[i - 1], ...])
+                    full_edges_mask[-i, -edge_ind[i - 1]:, ...] = np.zeros_like(
+                        full_edges_mask[-i, -edge_ind[i - 1]:, ...])
+                all_edges = []
+                for i1, i2 in utils.loop_segments(h['frame_nums']):  # 0, 1, 3998, 3999 ; 4000, 4001, 7998, 7999; ...
+                    edges = (np.asarray([[i1], [i2 - b]]) + np.arange(0, b).T).flatten()
+                    all_edges.append(edges)
+                all_edges = np.asarray(all_edges)
+            self.all_edges_list.append(all_edges)
+            full_edges_mask = full_edges_mask.astype(int)
+            self.full_edges_mask = full_edges_mask == 0
+
+    def __getitem__(self, num_2_extract):
+        h = self.H5_file_list
+        i = self.file_inds_for_H5_extraction
+        all_edges = self.all_edges_list[np.int(i[num_2_extract])]
+        H5_file = h[np.int(i[num_2_extract])]
+        num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+        with h5py.File(H5_file, 'r') as h:
+            b = self.lstm_len // 2
+            tot_len = h['images'].shape[0]
+            assert tot_len - b > self.batch_size, "reduce batch size to be less than total length of images minus floor(lstm_len) - 1, MAX->" + str(
+                tot_len - b - 1)
+            i1 = num_2_extract_mod * self.batch_size - b
+            i2 = num_2_extract_mod * self.batch_size + self.batch_size + b
+            edge_left_trigger = abs(min(i1, 0))
+            edge_right_trigger = min(abs(min(tot_len - i2, 0)), b)
+            x = h['images'][max(i1, 0):min(i2, tot_len)]
+            if edge_left_trigger + edge_right_trigger > 0:  # in case of edge cases
+                pad_shape = list(x.shape)
+                pad_shape[0] = edge_left_trigger + edge_right_trigger
+                pad = np.zeros(pad_shape).astype('uint8')
+                if edge_left_trigger > edge_right_trigger:
+                    x = np.concatenate((pad, x), axis=0)
+                else:
+                    x = np.concatenate((x, pad), axis=0)
+            x = self.image_transform(x)
+            s = list(x.shape)
+            s.insert(1, self.lstm_len)
+            out = np.zeros(s).astype('float32')  # before was uint8
+            # out = tf.cast(out, tf.float32)
+
+            for i in range(self.lstm_len):
+                i1 = max(0, b - i)
+                i2 = min(s[0], s[0] + b - i)
+                i3 = max(0, i - b)
+                i4 = min(s[0], s[0] + i - b)
+                # print('take ', i3,' to ',  i4, ' and place in ', i1,' to ', i2)
+                out[i1:i2, i, ...] = x[i3:i4, ...]
+            out = out[b:s[0] - b, ...]
+            i1 = num_2_extract_mod * self.batch_size
+            i2 = num_2_extract_mod * self.batch_size + self.batch_size
+            raw_Y = h[self.label_key][i1:i2]
+            # black out edges from frame to frame
+            adjust_these_edge_frames = np.intersect1d(all_edges.flatten(), np.arange(i1, i2))
+            for atef in adjust_these_edge_frames:
+                # mask_ind = np.where(atef == all_edges)[1][0]
+                # out[atef] = out[atef] * (self.full_edges_mask[mask_ind]
+
+                mask_ind = np.where(atef == all_edges)[1][0]
+                mask_ = self.full_edges_mask[mask_ind]
+                out[atef - i1][mask_] = -1
+            return out, raw_Y
+
+    # gray mask(set array to -1 not 0 ),DONE
+    # doesnt fill the edges as expected, DONE
+    # outputs format 0-255 not -1 to 1 DONE this was just custom code not from image_tools
+    # need to test this with uneven frames
+    def __len__(self):
+        return len(self.file_inds_for_H5_extraction)
+
+    def getXandY(self, num_2_extract):
+        """
+
+        Parameters
+        ----------
+        num_2_extract :
+
+
+        Returns
+        -------
+
+        """
+        rgb_tensor, raw_Y = self.__getitem__(num_2_extract)
+        return rgb_tensor, raw_Y
+
+    def image_transform(self, raw_X):
+        """input num_of_images x H x W, image input must be grayscale
+        MobileNetV2 requires certain image dimensions
+        We use N x 61 x 61 formated images
+        self.IMG_SIZE is a single number to change the images into, images must be square
+
+        Parameters
+        ----------
+        raw_X :
+
+
+        Returns
+        -------
+
+
+        """
+        if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
+            rgb_batch = copy.deepcopy(raw_X)
+        else:
+            rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+        rgb_tensor = rgb_batch
+        # rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+        rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2 #commented before
+        rgb_tensor = tf.image.resize(rgb_tensor, (self.IMG_SIZE, self.IMG_SIZE))  # resizing
+        # rgb_tensor = tf.cast(rgb_tensor, np.uint8)# un commented before
+        self.IMG_SHAPE = (self.IMG_SIZE, self.IMG_SIZE, 3)
+        return rgb_tensor
+
+
+def convert_h5_to_LSTM_h5(h5_file_list, lstm_h5_name, lstm_len=7, batch_size=100, label_key='labels', IMG_SIZE=96,
+                          disable_tqdm=False):
+    """
+    convert any H5 files with the 3 oclor channels into the LSTM format, then use iamge_tools.ImageBatchGenerator_simple
+    to directly draw from the H5 files to save time with converting them in the generator each time
+    Parameters
+    ----------
+    h5_file_list :
+    lstm_h5_name :
+    lstm_len :
+    batch_size :
+    label_key :
+    IMG_SIZE :
+    disable_tqdm :
+
+    Returns
+    -------
+
+    """
+    utils.make_list(h5_file_list, suppress_warning=True)
+    G = ImageBatchGenerator_LSTM(lstm_len, batch_size, h5_file_list, label_key=label_key, IMG_SIZE=IMG_SIZE)
+    Path(os.path.dirname(lstm_h5_name)).mkdir(parents=True, exist_ok=True)
+    h5creator = h5_iterative_creator(lstm_h5_name)
+    for k in tqdm(range(G.__len__()), disable=disable_tqdm):
+        x, y = G.__getitem__(k)
+        h5creator.add_to_h5(x, y)
+    frame_nums = get_h5_key_and_concatenate(h5_file_list, 'frame_nums')
+    utils.force_write_to_h5(h5creator.h5_full_file_name, frame_nums, 'frame_nums')
+
+#
+# class ImageBatchGenerator_feature_array(keras.utils.Sequence):
+#     """ """
+#
+#     def __init__(self, lstm_len, batch_size, h5_file_list, label_key='labels', feature_len=2048,
+#                  label_index_to_lstm_len=None):
+#         assert lstm_len % 2 == 1, "number of images must be odd"
+#         if label_index_to_lstm_len is None:
+#             label_index_to_lstm_len = lstm_len // 2  # in the middle
+#         h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
+#         num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
+#         file_inds_for_H5_extraction = batch_size_file_ind_selector(
+#             num_frames_in_all_H5_files, batch_size)
+#         subtract_for_index = reset_to_first_frame_for_each_file_ind(
+#             file_inds_for_H5_extraction)
+#         # self.to_fit = to_fit #set to True to return XY and False to return X
+#         self.label_key = label_key
+#         self.batch_size = batch_size
+#         self.H5_file_list = h5_file_list
+#         self.num_frames_in_all_H5_files = num_frames_in_all_H5_files
+#         self.file_inds_for_H5_extraction = file_inds_for_H5_extraction
+#         self.subtract_for_index = subtract_for_index
+#         self.label_index_to_lstm_len = label_index_to_lstm_len
+#         self.lstm_len = lstm_len
+#         self.feature_len = feature_len
+#         self.get_frame_edges()
+#
+#     def get_frame_edges(self):
+#         self.all_edges_list = []
+#         b = self.lstm_len // 2
+#         self.lstm_len
+#         self.feature_len
+#         s = [b * 2, self.lstm_len, self.feature_len]
+#         for H5_file in self.H5_file_list:
+#             with h5py.File(H5_file,
+#                            'r') as h:  # 0(0, 1) 1(0) 3998(-1) 3999(-2, -1) ...  4000(0, 1) 4001(0) 7998(-1) 7999(-2, -1) #0,0     0,1     1,0     3998,-1     3999,-2     3999,-1
+#                 full_edges_mask = np.ones(s)
+#                 edge_ind = np.flip(np.arange(1, b + 1))
+#                 for i in np.arange(1, b + 1):
+#                     full_edges_mask[i - 1, :edge_ind[i - 1], ...] = np.zeros_like(
+#                         full_edges_mask[i - 1, :edge_ind[i - 1], ...])
+#                     full_edges_mask[-i, -edge_ind[i - 1]:, ...] = np.zeros_like(
+#                         full_edges_mask[-i, -edge_ind[i - 1]:, ...])
+#                 all_edges = []
+#                 for i1, i2 in utils.loop_segments(h['frame_nums']):  # 0, 1, 3998, 3999 ; 4000, 4001, 7998, 7999; ...
+#                     edges = (np.asarray([[i1], [i2 - b]]) + np.arange(0, b).T).flatten()
+#                     all_edges.append(edges)
+#                 all_edges = np.asarray(all_edges)
+#             self.all_edges_list.append(all_edges)
+#             full_edges_mask = full_edges_mask.astype(int)
+#             self.full_edges_mask = full_edges_mask == 0
+#
+#     def __getitem__(self, num_2_extract):
+#         h = self.H5_file_list
+#         i = self.file_inds_for_H5_extraction
+#         all_edges = self.all_edges_list[np.int(i[num_2_extract])]
+#         H5_file = h[np.int(i[num_2_extract])]
+#         num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+#         with h5py.File(H5_file, 'r') as h:
+#             b = self.lstm_len // 2
+#             tot_len = h['images'].shape[0]
+#             assert tot_len - b > self.batch_size, "reduce batch size to be less than total length of images minus floor(lstm_len) - 1, MAX->" + str(
+#                 tot_len - b - 1)
+#             i1 = num_2_extract_mod * self.batch_size - b
+#             i2 = num_2_extract_mod * self.batch_size + self.batch_size + b
+#             edge_left_trigger = abs(min(i1, 0))
+#             edge_right_trigger = min(abs(min(tot_len - i2, 0)), b)
+#             x = h['images'][max(i1, 0):min(i2, tot_len)]
+#             if edge_left_trigger + edge_right_trigger > 0:  # in case of edge cases
+#                 pad_shape = list(x.shape)
+#                 pad_shape[0] = edge_left_trigger + edge_right_trigger
+#                 pad = np.zeros(pad_shape).astype('uint8')
+#                 if edge_left_trigger > edge_right_trigger:
+#                     x = np.concatenate((pad, x), axis=0)
+#                 else:
+#                     x = np.concatenate((x, pad), axis=0)
+#             x = self.image_transform(x)
+#             s = list(x.shape)
+#             s.insert(1, self.lstm_len)
+#             out = np.zeros(s).astype('float32')  # before was uint8
+#             # out = tf.cast(out, tf.float32)
+#
+#             for i in range(self.lstm_len):
+#                 i1 = max(0, b - i)
+#                 i2 = min(s[0], s[0] + b - i)
+#                 i3 = max(0, i - b)
+#                 i4 = min(s[0], s[0] + i - b)
+#                 # print('take ', i3,' to ',  i4, ' and place in ', i1,' to ', i2)
+#                 out[i1:i2, i, ...] = x[i3:i4, ...]
+#             out = out[b:s[0] - b, ...]
+#             i1 = num_2_extract_mod * self.batch_size
+#             i2 = num_2_extract_mod * self.batch_size + self.batch_size
+#             raw_Y = h[self.label_key][i1:i2]
+#             # black out edges from frame to frame
+#             adjust_these_edge_frames = np.intersect1d(all_edges.flatten(), np.arange(i1, i2))
+#             for atef in adjust_these_edge_frames:
+#                 # mask_ind = np.where(atef == all_edges)[1][0]
+#                 # out[atef] = out[atef] * (self.full_edges_mask[mask_ind]
+#
+#                 mask_ind = np.where(atef == all_edges)[1][0]
+#                 mask_ = self.full_edges_mask[mask_ind]
+#                 out[atef - i1][mask_] = -1
+#             return out, raw_Y
+#
+#     # gray mask(set array to -1 not 0 ),DONE
+#     # doesnt fill the edges as expected, DONE
+#     # outputs format 0-255 not -1 to 1 DONE this was just custom code not from image_tools
+#     # need to test this with uneven frames
+#     def __len__(self):
+#         return len(self.file_inds_for_H5_extraction)
+#
+#     def getXandY(self, num_2_extract):
+#         """
+#
+#         Parameters
+#         ----------
+#         num_2_extract :
+#
+#
+#         Returns
+#         -------
+#
+#         """
+#         rgb_tensor, raw_Y = self.__getitem__(num_2_extract)
+#         return rgb_tensor, raw_Y
+#
+#     def image_transform(self, raw_X):
+#         """input num_of_images x H x W, image input must be grayscale
+#         MobileNetV2 requires certain image dimensions
+#         We use N x 61 x 61 formated images
+#         self.IMG_SIZE is a single number to change the images into, images must be square
+#
+#         Parameters
+#         ----------
+#         raw_X :
+#
+#
+#         Returns
+#         -------
+#
+#
+#         """
+#         rgb_batch = copy.deepcopy(raw_X)
+#         # if len(raw_X.shape) == 4 and raw_X.shape[3] == 3:
+#         #     rgb_batch = copy.deepcopy(raw_X)
+#         # else:
+#         #     rgb_batch = np.repeat(raw_X[..., np.newaxis], 3, -1)
+#         rgb_tensor = rgb_batch
+#         # rgb_tensor = tf.cast(rgb_batch, tf.float32)  # convert to tf tensor with float32 dtypes
+#         rgb_tensor = (rgb_tensor / 127.5) - 1  # /127.5 = 0:2, -1 = -1:1 requirement for mobilenetV2 #commented before
+#         # rgb_tensor = tf.image.resize(rgb_tensor, (self.feature_len))  # resizing
+#         # rgb_tensor = tf.cast(rgb_tensor, np.uint8)# un commented before
+#         self.IMG_SHAPE = (self.feature_len)
+#         return rgb_tensor
+
+class ImageBatchGenerator_feature_array(keras.utils.Sequence):
+
+    def __init__(self, time_length, batch_size, h5_file_list, label_key='labels', feature_len=None,
+                 label_index_to_lstm_len=None, edge_value=-1, remove_any_time_points_with_edges=True):
+        """
+
+        Parameters
+        ----------
+        time_length : total time points
+        batch_size : batch output for generator, if set to None then will default to all frames which may use all your RAM
+        h5_file_list : list of h5 strings or single h5 string
+        label_key : where y output comes from
+        feature_len : length of the features per time point
+        label_index_to_lstm_len : determines look back and look forward index refers to where the 'current' time point is
+        within the range of look_back_len; e.g. look_back_len = 7 label_index_to_lstm_len = 3 (middle index of 7) then
+        time point 0 will be at 3 and index 0, 1, 2 will be the past values and index 4, 5, 6 will be the future values.
+        look_back_len = 7 label_index_to_lstm_len = 0 (first index) then current time point will be at index 0 and all
+        other time point (1, 2, 3, 4, 5, 6) will be future values. Default is middle time point
+        edge_value : what to replace the edge values with, when time shifting you will have edges with no value, this
+        will replace those values with this number.
+        remove_any_time_points_with_edges : if true then batch size will not be the actual batch size it will be batch
+        size - the number of time points with edges in them, x and y will still match and this method is preferred for
+        training due to it not including unknown values.
+        """
+        assert time_length % 2 == 1, "number of images must be odd"
+        if label_index_to_lstm_len is None:
+            label_index_to_lstm_len = time_length // 2  # in the middle
+        h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
+        num_frames_in_all_H5_files = get_total_frame_count(h5_file_list)
+        if batch_size is None:
+            batch_size = int(np.sum(num_frames_in_all_H5_files))
+
+        file_inds_for_H5_extraction = batch_size_file_ind_selector(
+            num_frames_in_all_H5_files, batch_size)
+        subtract_for_index = reset_to_first_frame_for_each_file_ind(
+            file_inds_for_H5_extraction)
+        self.remove_any_time_points_with_edges = remove_any_time_points_with_edges
+        self.label_key = label_key
+
+        self.batch_size = batch_size
+        self.H5_file_list = h5_file_list
+        self.num_frames_in_all_H5_files = num_frames_in_all_H5_files
+        self.file_inds_for_H5_extraction = file_inds_for_H5_extraction
+        self.subtract_for_index = subtract_for_index
+        self.label_index_to_lstm_len = label_index_to_lstm_len
+        self.lstm_len = time_length
+        self.feature_len = feature_len
+        self.edge_value = edge_value
+        if remove_any_time_points_with_edges:
+            self.edge_value = np.nan
+            print('remove_any_time_points_with_edges == True : forcing edge_value to np.nan to aid in removing these time points')
+
+        self.get_frame_edges()
+        # self.full_edges_mask = self.full_edges_mask - (self.lstm_len // 2 - self.label_index_to_lstm_len)
+
+    def __getitem__(self, num_2_extract):
+        h = self.H5_file_list
+        i = self.file_inds_for_H5_extraction
+        all_edges = self.all_edges_list[np.int(i[num_2_extract])]
+        H5_file = h[np.int(i[num_2_extract])]
+        num_2_extract_mod = num_2_extract - self.subtract_for_index[num_2_extract]
+
+        with h5py.File(H5_file, 'r') as h:
+            b = self.lstm_len // 2
+            tot_len = h['images'].shape[0]
+
+            # assert tot_len - b > self.batch_size, "reduce batch size to be less than total length of images minus floor(lstm_len) - 1, MAX->" + str(
+            #     tot_len - b - 1)
+
+            i1 = num_2_extract_mod * self.batch_size - b
+            i2 = num_2_extract_mod * self.batch_size + self.batch_size + b
+            edge_left_trigger = abs(min(i1, 0))
+            edge_right_trigger = min(abs(min(tot_len - i2, 0)), b)
+            x = h['images'][max(i1, 0):min(i2, tot_len)]
+            if edge_left_trigger + edge_right_trigger > 0:  # in case of edge cases
+                pad_shape = list(x.shape)
+                pad_shape[0] = edge_left_trigger + edge_right_trigger
+                pad = np.zeros(pad_shape).astype('float32')
+                if edge_left_trigger > edge_right_trigger:
+                    x = np.concatenate((pad, x), axis=0)
+                else:
+                    x = np.concatenate((x, pad), axis=0)
+
+            s = list(x.shape)
+            s.insert(1, self.lstm_len)
+            out = np.zeros(s).astype('float32')  # before was uint8
+            Z = self.label_index_to_lstm_len - self.lstm_len // 2
+            for i in range(self.lstm_len):
+                i_temp = i
+                i = i - Z
+                i1 = max(0, b - i)
+                i2 = min(s[0], s[0] + b - i)
+                i3 = max(0, i - b)
+                i4 = min(s[0], s[0] + i - b)
+                # print('take ', i3, ' to ', i4, ' and place in ', i1, ' to ', i2)
+                out[i1:i2, i_temp, ...] = x[i3:i4, ...]
+
+            out = out[b:s[0] - b, ...]
+            i1 = num_2_extract_mod * self.batch_size
+            i2 = num_2_extract_mod * self.batch_size + self.batch_size
+            raw_Y = h[self.label_key][i1:i2]
+
+            adjust_these_edge_frames = np.intersect1d(all_edges.flatten(), np.arange(i1, i2))
+            b2 = b - self.label_index_to_lstm_len  # used to adjust mask postion based on where the center value is
+            for atef in adjust_these_edge_frames:
+                mask_ind = np.where(atef == all_edges)[1][0]
+                mask_ind = mask_ind - b2
+                mask_ind = mask_ind % self.full_edges_mask.shape[0]  # wrap around index
+
+                mask_ = self.full_edges_mask[mask_ind]
+                mask_ = mask_ == 1
+                out_ind = atef + i1 - b2
+                out_ind = out_ind % out.shape[0]  # wrap around index
+                out[out_ind][mask_] = self.edge_value
+
+            s = out.shape
+            out = np.reshape(out, (s[0], s[1] * s[2]))
+            if self.remove_any_time_points_with_edges:
+                keep_inds = ~np.isnan(np.mean(out, axis=1))
+                out = out[keep_inds]
+                raw_Y = raw_Y[keep_inds]
+
+            return out, raw_Y
+
+    def __len__(self):
+        return len(self.file_inds_for_H5_extraction)
+
+    def getXandY(self, num_2_extract):
+        """
+
+        Parameters
+        ----------
+        num_2_extract :
+
+
+        Returns
+        -------
+
+        """
+        rgb_tensor, raw_Y = self.__getitem__(num_2_extract)
+        return rgb_tensor, raw_Y
+
+    def image_transform(self, raw_X):
+        """input num_of_images x H x W, image input must be grayscale
+        MobileNetV2 requires certain image dimensions
+        We use N x 61 x 61 formated images
+        self.IMG_SIZE is a single number to change the images into, images must be square
+
+        Parameters
+        ----------
+        raw_X :
+
+
+        Returns
+        -------
+
+
+        """
+        # kept this cause this is the format of the image generators I know this is redundant
+        rgb_batch = copy.deepcopy(raw_X)
+        rgb_tensor = rgb_batch
+        self.IMG_SHAPE = (self.feature_len)
+        return rgb_tensor
+
+    def get_frame_edges(self):
+        self.all_edges_list = []
+        b = self.lstm_len // 2
+
+        s = [b * 2, self.lstm_len, self.feature_len]
+        for H5_file in self.H5_file_list:
+            with h5py.File(H5_file, 'r') as h:
+                full_edges_mask = np.ones(s)
+                tmp1 = np.arange(1, self.lstm_len)
+                front_edge = tmp1[:self.label_index_to_lstm_len]
+                back_edge = tmp1[:self.lstm_len - self.label_index_to_lstm_len - 1]
+
+                edge_ind = np.flip(front_edge)
+                for i in front_edge:
+                    # print(i - 1, ':', edge_ind[i - 1])
+                    # print(full_edges_mask[i - 1, :edge_ind[i - 1], ...].shape)
+                    # print('\n')
+                    full_edges_mask[i - 1, :edge_ind[i - 1], ...] = np.zeros_like(
+                        full_edges_mask[i - 1, :edge_ind[i - 1], ...])
+
+                edge_ind = np.flip(back_edge)
+                for i in back_edge:
+                    # print(-i, -edge_ind[i - 1], ':')
+                    # print(full_edges_mask[-i, -edge_ind[i - 1]:, ...].shape)
+                    # print('\n')
+                    full_edges_mask[-i, -edge_ind[i - 1]:, ...] = np.zeros_like(
+                        full_edges_mask[-i, -edge_ind[i - 1]:, ...])
+
+                all_edges = []
+                for i1, i2 in utils.loop_segments(h['frame_nums']):  # 0, 1, 3998, 3999 ; 4000, 4001, 7998, 7999; ...
+                    edges = (np.asarray([[i1], [i2 - b]]) + np.arange(0, b).T).flatten()
+                    all_edges.append(edges)
+
+                all_edges = np.asarray(all_edges)
+            self.all_edges_list.append(all_edges)
+            full_edges_mask = full_edges_mask.astype(int)
+            self.full_edges_mask = full_edges_mask == 0

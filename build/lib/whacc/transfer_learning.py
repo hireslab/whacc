@@ -13,7 +13,7 @@ allow for plotting different plot using subplot I guess is the easiest way
 """
 from whacc import utils
 
- # setting up plotting when using google colab or notebook (though only tested in colab)
+ # setting up plotting when usinsave_and_plot_historyg google colab or notebook (though only tested in colab)
 if utils.isnotebook():
 
     from IPython import get_ipython
@@ -259,4 +259,19 @@ def foo_save_and_plot(training_info, save_and_plot_history_1, save_loc):
 
     # save training info
     with open(save_loc + 'mod_test_data_' + save_num + '.json', 'w') as f:
+        json.dump(training_info, f)
+
+def foo_save_and_plot(training_info, save_and_plot_history_1, save_loc):
+    text_str = transfer_learning.make_text_for_fig(training_info)
+    training_info = transfer_learning.pack_training_info(training_info, save_and_plot_history_1)
+    # save_num = foo_get_next_save_num(save_loc)
+
+    # make figure and save
+    transfer_learning.plot_train_hist(training_info, [1], [.9, 1], text_str)
+    plt.savefig(save_loc + 'mod_test_fig_ACC' + '.png', bbox_inches="tight")
+    transfer_learning.plot_train_hist(training_info, [0], [0, 0.25], text_str)
+    plt.savefig(save_loc + 'mod_test_fig_LOSS' + '.png', bbox_inches="tight")
+
+    # save training info
+    with open(save_loc + 'model_eval_each_epoch' + '.json', 'w') as f:
         json.dump(training_info, f)
