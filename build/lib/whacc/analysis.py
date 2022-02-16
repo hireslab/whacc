@@ -149,7 +149,6 @@ class pole_plot():
         self.current_frame = current_frame
         self.figsize = figsize
         self.fig_created = False
-        # pdb.set_trace()
         if pred_val is None:
             tmp3 = self.true_val
         elif true_val is None:
@@ -226,6 +225,20 @@ class pole_plot():
 
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
+        self.onset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([0,1]))+1
+        self.offset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([1,0]))
+        self.onset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([0,1]))+1
+        self.offset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([1,0]))
+
+        # np.concatenate((np.asarray(self.error_lengths_sorted)[self.onset_append_inds], np.asarray(self.error_lengths_sorted)[self.onset_deduct_inds]*-1))
+        # np.concatenate((np.asarray(self.error_lengths_sorted)[self.offset_append_inds], np.asarray(self.error_lengths_sorted)[self.offset_deduct_inds]*-1))
+
+
+        self.correct_onset_inds_sorted = np.intersect1d(self.onset_inds_real, self.onset_inds_pred)
+        self.correct_offset_inds_sorted = np.intersect1d(self.offset_inds_real, self.offset_inds_pred)
+
+        if frame_num_array is None:
+            frame_num_array = np.asarray([len(real_bool)])
         frame_num_array = list(frame_num_array.astype(int))
         self.real = real_bool
         self.pred = pred_bool
@@ -249,6 +262,8 @@ class error_analysis():
         self.all_error_type = []
         self.all_errors = []
         self.all_error_nums = []
+
+        self.which_side_test = []
         if frame_num_array is None:
             frame_num_array = [len(self.pred)]
 
@@ -256,14 +271,12 @@ class error_analysis():
             d = self.get_diff_array(self.real[i1:i2], self.pred[i1:i2])  # TP = 2, TN = 0, FP = -1, FN = 1
 
             R_neg, P_neg, X_neg, group_inds_neg = self.get_error_segments_plus_border(d, -1)
-            cnt = -1
+
             self.group_inds_neg += group_inds_neg
             for each_x in X_neg:
-                # cnt+=1
-                # if cnt == 11:
-                #     pdb.set_trace()
                 self.error_neg.append(self.get_error_type(each_x))
                 self.neg_add_to.append(i1)
+                self.which_side_test.append([self.one_sided_get_type(each_x), self.one_sided_get_type(np.flip(each_x))])
 
             R_pos, P_pos, X_pos, group_inds_pos = self.get_error_segments_plus_border(d, 1)
             self.group_inds_pos += group_inds_pos
@@ -271,21 +284,45 @@ class error_analysis():
             for each_x in X_pos:
                 self.error_pos.append(self.get_error_type(each_x))
                 self.pos_add_to.append(i1)
-        self.get_all_errors_sorted_final()
+                self.which_side_test.append([self.one_sided_get_type(each_x), self.one_sided_get_type(np.flip(each_x))])
+        #
+
+        self.get_all_errors_final()
         self.get_error_types_separate()
 
+        # get the sorted errors
         tmp1 = []
         for k in self.all_errors:
             tmp1.append(k[0])
         self.all_errors_sorted = []
         self.all_error_type_sorted = []
         self.all_error_nums_sorted = []
+        self.which_side_test_sorted = []
         for k in np.argsort(tmp1):
             self.all_errors_sorted.append(self.all_errors[k])
             self.all_error_type_sorted.append(self.all_error_type[k])
             self.all_error_nums_sorted.append(self.all_error_nums[k])
+            self.which_side_test_sorted.append(self.which_side_test[k])
+        self.error_lengths_sorted = [len(k) for k in self.all_errors_sorted]
+        self.append_inds = np.where(np.asarray(self.all_error_type_sorted) == 'append')[0]
+        self.deduct_inds = np.where(np.asarray(self.all_error_type_sorted) == 'deduct')[0]
+        self.sided_append_or_deduct = np.diff(np.asarray(self.which_side_test_sorted)).flatten()
 
-    def get_all_errors_sorted_final(self):
+        self.onset_append_inds = self.append_inds[self.sided_append_or_deduct[self.append_inds] > 0]
+        self.offset_append_inds = self.append_inds[self.sided_append_or_deduct[self.append_inds] < 0]
+        self.onset_deduct_inds = self.deduct_inds[self.sided_append_or_deduct[self.deduct_inds] > 0]
+        self.offset_deduct_inds = self.deduct_inds[self.sided_append_or_deduct[self.deduct_inds] < 0]
+
+        self.correct_onset_inds_sorted = np.intersect1d(self.onset_inds_real, self.onset_inds_pred)
+        self.correct_offset_inds_sorted = np.intersect1d(self.offset_inds_real, self.offset_inds_pred)
+
+        self.onset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.onset_append_inds], np.asarray(self.error_lengths_sorted)[self.onset_deduct_inds]*-1))
+        self.offset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.offset_append_inds], np.asarray(self.error_lengths_sorted)[self.offset_deduct_inds]*-1))
+
+        self.onset_distance = np.concatenate((self.onset_distance, np.zeros_like(self.correct_onset_inds_sorted)))
+        self.offset_distance = np.concatenate((self.offset_distance, np.zeros_like(self.correct_offset_inds_sorted)))
+
+    def get_all_errors_final(self):
         for k, i, et in zip(self.group_inds_neg, self.neg_add_to, self.error_neg):
             self.all_errors.append(list(k + i))
             self.all_error_type.append(self.type_list[et])
@@ -369,6 +406,13 @@ class error_analysis():
         return R, P, X, group_inds
 
     def get_error_types_separate(self):
+        """
+
+        Returns
+        -------
+        self.coded_array where -2 is a correct time point and indexes 0 through 5 match the list of strings
+        self.type_list_coded ['ghost', 'miss', 'join', 'split', 'append', 'deduct']
+        """
         coded_array = np.zeros_like(self.real) - 2
         all_errors = np.asarray(self.all_errors)
         all_error_type = np.asarray(self.all_error_type)

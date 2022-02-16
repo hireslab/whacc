@@ -116,8 +116,8 @@ class basic_metrics():
 
 
 class pole_plot():
-    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5, len_plot=10, current_frame=0,
-                 figsize=[10, 10]):
+    def __init__(self, img_h5_file, pred_val=None, true_val=None, threshold=0.5,
+                 len_plot=10, current_frame=0, figsize=[10, 5], label_nums=None, label_num_names=None, shift_by=0):
         """
         Examples
         ________
@@ -125,13 +125,21 @@ class pole_plot():
             '/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/master_train_test1.h5',
             pred_val = [0,0,0,0,0,0,0,.2,.4,.5,.6,.7,.8,.8,.6,.4,.2,.1,0,0,0,0],
             true_val = [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0],
-            len_plot = 10)ax
+            len_plot = 10)
 
         a.plot_it()
         """
         if true_val is None:
             if 'labels' in utils.print_h5_keys(img_h5_file, return_list=True, do_print=False):
                 true_val = image_tools.get_h5_key_and_concatenate([img_h5_file])
+        # tmp_loc = locals()
+        self.error_group_inds = None
+        # if 'true_val' in tmp_loc.keys() and 'pred_val' in tmp_loc.keys():
+        if pred_val is not None and true_val is not None:
+            error_group_inds = np.where(true_val - pred_val != 0)[0]
+            error_group_inds, _ = utils.group_consecutives(error_group_inds)
+            self.error_group_inds = error_group_inds
+
         self.isnotebook = utils.isnotebook()
         self.img_h5_file = img_h5_file
         self.pred_val = np.asarray(pred_val)
@@ -141,14 +149,19 @@ class pole_plot():
         self.current_frame = current_frame
         self.figsize = figsize
         self.fig_created = False
-        try:
+        if pred_val is None:
+            tmp3 = self.true_val
+        elif true_val is None:
+            tmp3 = self.pred_val
+        else:
             tmp3 = np.unique(np.concatenate((self.pred_val, self.true_val)))
-            self.range_labels = list(range([np.nanmin(tmp3), np.nanmax(tmp3) + 1]))
-            self.ylims = [np.nanmin(tmp3) - .5, np.nanmax(tmp3) + .5]
-        except:
-            self.range_labels = [0, 1]
-            self.ylims = [-.5, 1.5]
+        self.range_labels = np.arange(np.nanmin(tmp3), np.nanmax(tmp3) + 1)
+        self.ylims = [np.nanmin(tmp3) - .5, np.nanmax(tmp3) + .5]
 
+        self.label_nums = label_nums
+        self.label_num_names = label_num_names
+        self.shift_by = shift_by
+        self.xlims = [-.5, self.len_plot - .5]
         try:
             self.pred_val_bool = (1 * (self.pred_val > threshold)).flatten()
         except:
@@ -157,23 +170,33 @@ class pole_plot():
     def plot_it(self):
 
         if self.fig_created is False or self.isnotebook:  # we need to create a new fig every time if we are in colab or jupyter
-            self.fig, self.axs = plt.subplots(2, figsize=self.figsize)
+            self.fig, self.axs = plt.subplots(2, figsize=self.figsize, gridspec_kw={'height_ratios': [1, 1]})
             self.fig_created = True
-            plt.subplots_adjust(hspace=.001)
+            # plt.subplots_adjust(hspace = .001)
+
+        ax1 = self.axs[1]
+        box = ax1.get_position()
+        box.y0 = box.y0 + self.shift_by
+        box.y1 = box.y1 + self.shift_by
+        ax1.set_position(box)
+
         self.axs[0].clear()
         self.axs[1].clear()
         self.fig.suptitle('Touch prediction')
         s1 = self.current_frame
         s2 = self.current_frame + self.len_plot
+        self.xticks = np.arange(0, self.len_plot)
         # plt.axis('off')
         with h5py.File(self.img_h5_file, 'r') as h:
             self.current_imgs = image_tools.img_unstacker(h['images'][s1:s2], s2 - s1)
             # plt.imshow(self.current_imgs)
             self.axs[0].imshow(self.current_imgs)
+            self.axs[0].axis('off')
+
         leg = []
         # axs[1].plot([None])
         if len(self.pred_val.shape) != 0:
-            plt.plot(self.pred_val[s1:s2].flatten(), 'k-')
+            plt.plot(self.pred_val[s1:s2].flatten(), color='black', marker='*', linestyle='None')
             leg.append('pred')
         # if len(self.pred_val_bool.shape) != 0:
         #     plt.plot(self.pred_val_bool[s1:s2].flatten(), '.g', markersize=10)
@@ -183,9 +206,13 @@ class pole_plot():
             plt.scatter(range(len(tmp1)), tmp1, s=80, facecolors='none', edgecolors='r')
             leg.append('actual')
         if leg:
-            plt.legend(leg, )
+            plt.legend(leg, bbox_to_anchor=(1.04, 1), borderaxespad=0)
             plt.ylim(self.ylims)
-            # plt.ylim([-.2, 1.2])
+            plt.xlim(self.xlims)
+            _ = plt.xticks(ticks=self.xticks)
+        if self.label_nums is not None and self.label_num_names is not None:
+            plt.yticks(ticks=self.label_nums, labels=self.label_num_names)
+        plt.grid(axis='y')
 
     def next(self):
         self.current_frame = self.current_frame + self.len_plot
@@ -198,10 +225,25 @@ class pole_plot():
 
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
+        self.onset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([0,1]))+1
+        self.offset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([1,0]))
+        self.onset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([0,1]))+1
+        self.offset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([1,0]))
+
+        # np.concatenate((np.asarray(self.error_lengths_sorted)[self.onset_append_inds], np.asarray(self.error_lengths_sorted)[self.onset_deduct_inds]*-1))
+        # np.concatenate((np.asarray(self.error_lengths_sorted)[self.offset_append_inds], np.asarray(self.error_lengths_sorted)[self.offset_deduct_inds]*-1))
+
+
+        self.correct_onset_inds_sorted = np.intersect1d(self.onset_inds_real, self.onset_inds_pred)
+        self.correct_offset_inds_sorted = np.intersect1d(self.offset_inds_real, self.offset_inds_pred)
+
+        if frame_num_array is None:
+            frame_num_array = np.asarray([len(real_bool)])
         frame_num_array = list(frame_num_array.astype(int))
         self.real = real_bool
         self.pred = pred_bool
         self.type_list = ['ghost', 'ghost', 'append', 'miss', 'miss', 'deduct', 'join', 'split']
+        self.type_list_coded = ['ghost', 'miss', 'join', 'split', 'append', 'deduct']
         self.group_inds_neg = []
         self.group_inds_pos = []
         self.error_neg = []
@@ -209,9 +251,19 @@ class error_analysis():
         self.neg_add_to = []
         self.pos_add_to = []
 
+        self.coded_array = []
+        self.e_ghost = []
+        self.e_miss = []
+        self.e_join = []
+        self.e_split = []
+        self.e_append = []
+        self.e_deduct = []
+
         self.all_error_type = []
         self.all_errors = []
         self.all_error_nums = []
+
+        self.which_side_test = []
         if frame_num_array is None:
             frame_num_array = [len(self.pred)]
 
@@ -219,14 +271,12 @@ class error_analysis():
             d = self.get_diff_array(self.real[i1:i2], self.pred[i1:i2])  # TP = 2, TN = 0, FP = -1, FN = 1
 
             R_neg, P_neg, X_neg, group_inds_neg = self.get_error_segments_plus_border(d, -1)
-            cnt = -1
+
             self.group_inds_neg += group_inds_neg
             for each_x in X_neg:
-                # cnt+=1
-                # if cnt == 11:
-                #     pdb.set_trace()
                 self.error_neg.append(self.get_error_type(each_x))
                 self.neg_add_to.append(i1)
+                self.which_side_test.append([self.one_sided_get_type(each_x), self.one_sided_get_type(np.flip(each_x))])
 
             R_pos, P_pos, X_pos, group_inds_pos = self.get_error_segments_plus_border(d, 1)
             self.group_inds_pos += group_inds_pos
@@ -234,14 +284,50 @@ class error_analysis():
             for each_x in X_pos:
                 self.error_pos.append(self.get_error_type(each_x))
                 self.pos_add_to.append(i1)
-        self.get_all_errors_sorted_final()
+                self.which_side_test.append([self.one_sided_get_type(each_x), self.one_sided_get_type(np.flip(each_x))])
+        #
 
-    def get_all_errors_sorted_final(self):
+        self.get_all_errors_final()
+        self.get_error_types_separate()
+
+        # get the sorted errors
+        tmp1 = []
+        for k in self.all_errors:
+            tmp1.append(k[0])
+        self.all_errors_sorted = []
+        self.all_error_type_sorted = []
+        self.all_error_nums_sorted = []
+        self.which_side_test_sorted = []
+        for k in np.argsort(tmp1):
+            self.all_errors_sorted.append(self.all_errors[k])
+            self.all_error_type_sorted.append(self.all_error_type[k])
+            self.all_error_nums_sorted.append(self.all_error_nums[k])
+            self.which_side_test_sorted.append(self.which_side_test[k])
+        self.error_lengths_sorted = [len(k) for k in self.all_errors_sorted]
+        self.append_inds = np.where(np.asarray(self.all_error_type_sorted) == 'append')[0]
+        self.deduct_inds = np.where(np.asarray(self.all_error_type_sorted) == 'deduct')[0]
+        self.sided_append_or_deduct = np.diff(np.asarray(self.which_side_test_sorted)).flatten()
+
+        self.onset_append_inds = self.append_inds[self.sided_append_or_deduct[self.append_inds] > 0]
+        self.offset_append_inds = self.append_inds[self.sided_append_or_deduct[self.append_inds] < 0]
+        self.onset_deduct_inds = self.deduct_inds[self.sided_append_or_deduct[self.deduct_inds] > 0]
+        self.offset_deduct_inds = self.deduct_inds[self.sided_append_or_deduct[self.deduct_inds] < 0]
+
+        self.correct_onset_inds_sorted = np.intersect1d(self.onset_inds_real, self.onset_inds_pred)
+        self.correct_offset_inds_sorted = np.intersect1d(self.offset_inds_real, self.offset_inds_pred)
+
+        self.onset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.onset_append_inds], np.asarray(self.error_lengths_sorted)[self.onset_deduct_inds]*-1))
+        self.offset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.offset_append_inds], np.asarray(self.error_lengths_sorted)[self.offset_deduct_inds]*-1))
+
+        self.onset_distance = np.concatenate((self.onset_distance, np.zeros_like(self.correct_onset_inds_sorted)))
+        self.offset_distance = np.concatenate((self.offset_distance, np.zeros_like(self.correct_offset_inds_sorted)))
+
+    def get_all_errors_final(self):
         for k, i, et in zip(self.group_inds_neg, self.neg_add_to, self.error_neg):
             self.all_errors.append(list(k + i))
             self.all_error_type.append(self.type_list[et])
             self.all_error_nums.append(et)
-        for k, i in zip(self.group_inds_pos, self.pos_add_to):
+        for k, i, et in zip(self.group_inds_pos, self.pos_add_to, self.error_pos):
             self.all_errors.append(list(k + i))
             self.all_error_type.append(self.type_list[et])
             self.all_error_nums.append(et)
@@ -319,6 +405,27 @@ class error_analysis():
 
         return R, P, X, group_inds
 
+    def get_error_types_separate(self):
+        """
+
+        Returns
+        -------
+        self.coded_array where -2 is a correct time point and indexes 0 through 5 match the list of strings
+        self.type_list_coded ['ghost', 'miss', 'join', 'split', 'append', 'deduct']
+        """
+        coded_array = np.zeros_like(self.real) - 2
+        all_errors = np.asarray(self.all_errors)
+        all_error_type = np.asarray(self.all_error_type)
+        for i, k in enumerate(self.type_list_coded):
+            tmp2 = all_errors[k == all_error_type]
+            all_inds = []
+            for kk in tmp2:
+                all_inds += kk
+            for kk in all_inds:
+                coded_array[kk] = i
+            exec('self.e_' + k + '=all_inds')
+        self.coded_array = coded_array
+
 
 def name_filt(all_data, filt_string):
     keep_filt = []
@@ -378,7 +485,7 @@ def plot_acc(all_data, all_keep_filt, figsize=[15, 10]):
 def plot_touch_segment_with_array_blocks(actual_h5_img_file, in_list_of_arrays=[], touch_number=0, border=4, height=20,
                                          img_width=61, color_list=None, cmap_col='inferno'):
     if color_list is None:
-        color_list=[0, .5, .2, .3, .75, .85]
+        color_list = [0, .5, .2, .3, .75, .85]
 
     if in_list_of_arrays == []:
         print('no input arrays, returning...')
@@ -412,7 +519,6 @@ def plot_touch_segment_with_array_blocks(actual_h5_img_file, in_list_of_arrays=[
         tmp2 = image_tools.img_unstacker(h['images'][inds[0]:inds[-1] + 1], num_frames_wide=len(inds))
         tmp2 = np.vstack((tmp1, tmp2))
         return tmp2
-
 
 # tmp2 = plot_touch_segment_with_array_blocks(actual_h5_img_file, in_list_of_arrays=[real, pred_m, pred_v],
 #                                             touch_number=202, border=4, height=20, img_width=61,

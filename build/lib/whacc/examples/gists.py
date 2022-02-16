@@ -518,7 +518,7 @@ utils.make_all_H5_types('/Users/phil/Dropbox/Colab data/H5_data/single_frame/')
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$run in google colab$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$  needs search_sequence_numpy from colab, adds all the correct labels to the H5  $$$$$$$$$$$$$$$$$$$$$$$$"""
-
+"""used to make the final 'real contats, based on average of human and some basic editing """
 from google.colab import drive
 import numpy as np
 import h5py
@@ -954,7 +954,7 @@ for h5_subset_file in tqdm(full_session_h5s[:4]):
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$ transfer alt labels to the training and val set  $$"""
+"""$$ transfer alt labels to the training and val set   from the ALT_LABELS source $$"""
 
 
 x = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/ALL_RETRAIN_H5_data/"
@@ -987,7 +987,7 @@ for k in next(os.walk(x))[1]:
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$ transfer alt labels to the 'test' set  $$"""
+"""$$ transfer alt labels to the 'test' set  from the ALT_LABELS source$$"""
 
 
 x = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/DATA_FULL/"
@@ -1026,3 +1026,233 @@ for src, dest in tzip(model_3_h5s, to_pred_h5s):
             del h5dest[key]
             time.sleep(4)
             h5dest.create_dataset(key, shape=np.shape(h5src[key][:]),data=h5src[key][:])
+
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ get legit pole times based on best information we haev it doesnt matter if there is an offset of the pole times
+  so long as it is relative to the real pole triggers$$"""
+
+def pole_relative_first_and_last_touches(h5_file, truth_contacts):
+  try:
+    frame_nums = image_tools.get_h5_key_and_concatenate([h5_file], 'frame_nums')
+  except:
+    tnfn = image_tools.get_h5_key_and_concatenate([h5_file], 'trial_nums_and_frame_nums')
+    frame_nums = tnfn[1, :]
+
+  pt = image_tools.get_h5_key_and_concatenate([h5_file], 'pole_times')
+  first_touches = []
+  last_touches = []
+  for ii, (i1, i2) in enumerate(utils.loop_segments(frame_nums)):
+
+    x = truth_contacts[i1:i2]
+    tmp1 = np.where(x)[0]
+    if tmp1.size !=0:
+      first_touches.append(tmp1[0]-pt[0, ii])
+      last_touches.append(tmp1[-1]-pt[1, ii])
+    else:
+      first_touches.append(np.nan)
+      last_touches.append(np.nan)
+  min_first_touch = np.nanmin(first_touches)
+  max_last_touch = np.nanmax(last_touches)
+
+  return min_first_touch, max_last_touch, first_touches, last_touches
+
+def define_in_range(h5_file, pole_up_add_to_trigger=0, pole_down_add_to_trigger=0, write_to_h5=True, return_in_range=False):
+  try:
+    fn = image_tools.get_h5_key_and_concatenate([h5_file], 'frame_nums')
+  except:
+    tnfn = image_tools.get_h5_key_and_concatenate([h5_file], 'trial_nums_and_frame_nums')
+    fn = tnfn[1, :]
+  with h5py.File(h5_file, 'r+') as hf:
+    # print(hf['images'].shape)
+    new_in_range = np.zeros(hf['images'].shape[0])
+    # new_in_range = np.zeros_like(hf['in_range'][:]) # might have to add 'in_range'
+    # # variable using length labels or something beforehand if it isnt done with video
+    # # extraction automatically although I think it already does.
+    for i, (i1, i2) in enumerate(utils.loop_segments(fn)):
+      x = hf['pole_times'][:, i] + i1
+      x1 = x[0] + pole_up_add_to_trigger
+      x2 = x[1] + pole_down_add_to_trigger +1
+      x2 = min([x2, i2])
+      new_in_range[int(x1):int(x2)] = 1
+    if write_to_h5:
+      hf['in_range'][:] = new_in_range
+    if return_in_range:
+      return new_in_range
+
+
+
+
+base_dir = '/content/ALT_LABELS_FINAL_PRED'
+h5_list_to_write = utils.get_h5s(base_dir, 0)
+for k in h5_list_to_write:
+
+  # avg_human_cont = image_tools.get_h5_key_and_concatenate([k], 'labels')
+  truth_contacts = image_tools.get_h5_key_and_concatenate([k], '[0, 1]- (no touch, touch)')
+  min_first_touch, max_last_touch, first_touches, last_touches = pole_relative_first_and_last_touches(k, truth_contacts)
+  in_range = define_in_range(k,
+                              pole_up_add_to_trigger=min_first_touch,
+                              pole_down_add_to_trigger=max_last_touch,
+                              write_to_h5=True,
+                              return_in_range=True)
+  print(min_first_touch)
+  print(max_last_touch)
+  print(np.sum(abs(in_range-1)*truth_contacts))
+  print('\n')
+"""
+some extra code for copying all the info here to a list of them 
+
+
+
+
+"""
+
+x = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/DATA_FULL"
+a = utils.get_h5s(x)
+TO_GET_IN_RANGE_H5S = utils.lister_it(a, remove_string='/ALT_LABELS/')
+
+for k in tqdm(TO_GET_IN_RANGE_H5S):
+
+  # avg_human_cont = image_tools.get_h5_key_and_concatenate([k], 'labels')
+  truth_contacts = image_tools.get_h5_key_and_concatenate([k], '[0, 1]- (no touch, touch)')
+  min_first_touch, max_last_touch, first_touches, last_touches = pole_relative_first_and_last_touches(k, truth_contacts)
+  in_range = define_in_range(k,
+                              pole_up_add_to_trigger=min_first_touch,
+                              pole_down_add_to_trigger=max_last_touch,
+                              write_to_h5=False,
+                              return_in_range=True)
+  first_touch = min_first_touch
+  last_touch = max_last_touch
+
+  with h5py.File(k, 'r+') as hf:
+    tmp1 = ['in_range', 'first_touch', 'first_touches', 'last_touch', 'last_touches']
+    for key_name in tmp1:
+      data = eval(key_name)
+      try:
+        hf.create_dataset(key_name,data=data)
+      except:
+        del hf[key_name]
+        time.sleep(1)
+        hf.create_dataset(key_name,data=data)
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ rename the model predictions on the regular_80_FINAL_PRED set"""
+
+# rename the model predictions on the regular_80_FINAL_PRED set
+new_names = utils.lister_it(utils.print_h5_keys(to_pred_h5s[0], 1, 0), keep_strings='MODEL_', remove_string='viterbi')
+
+for h5_file in all_pred_h5:
+  with h5py.File(h5_file, 'r+') as hf:
+    for k in new_names:
+      old_names = utils.lister_it(utils.print_h5_keys(h5_file, 1, 0), keep_strings='MODEL_')
+      k2 = k.split('_-_')[0]
+      x = np.where(k2 == np.asarray(old_names))[0]
+      if len(x)!=1:
+        print(x)
+      else:
+        x = x[0]
+        hf.create_dataset(k, data = hf[old_names[x]][:])
+        del hf[old_names[x]]
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ crop out pole down times to get in range times in_range"""
+
+
+all_h5s = utils.get_h5s("/content/DATA_FULL/", 0)
+all_h5s = utils.lister_it(all_h5s, remove_string='/ALT_LABELS/')
+
+all_in_range_h5s = utils.get_h5s('/content/gdrive/My Drive/colab_data2/model_testing/all_data/final_predictions/ALT_LABELS_FINAL_PRED')
+
+
+keys_to_crop = ['[0, 1, 2, 3, 4, 5]- (no touch, touch, onset, one after onset, offset, one after offset)',
+ '[0, 1, 2, 3]- (no touch, touch, one after onset, offset)',
+ '[0, 1, 2, 3]- (no touch, touch, onset, offset',
+ '[0, 1, 2]- (no event, onset, offset)',
+ '[0, 1]- (no touch, touch)',
+ '[0, 1]- (not offset, offset)',
+ '[0, 1]- (not onset, onset)',
+ 'labels',
+ 'images']
+keys_to_keep = ['multiplier',
+ 'frame_nums',
+ 'file_name_nums',
+ 'pole_times'] + keys_to_crop
+
+
+for h5 in tqdm(all_h5s):
+  base_name = h5.split('data_')[-1].split('/')[0]
+  in_range_h5 = utils.lister_it(all_in_range_h5s, keep_strings=[base_name])
+  assert len(in_range_h5) == 1
+  in_range = image_tools.get_h5_key_and_concatenate(in_range_h5[0], 'in_range')
+
+  original_total = len(in_range)
+  with h5py.File(h5, 'r+') as hf:
+    for tmp_key in hf.keys():#first delete all irrelivent keys
+      if tmp_key not in keys_to_keep:
+        del hf[tmp_key]
+    for key in keys_to_crop:
+      new_frame_nums = []#hacky but fine
+      cropped_var = None
+      for i1, i2 in utils.loop_segments(hf['frame_nums'][:]):
+        ir = in_range[i1:i2]
+        new_frame_nums.append(np.sum(ir))
+
+        tmp1 = hf[key][i1:i2]
+        tmp2 = tmp1[ir.astype(bool)]
+        if cropped_var is None:
+          cropped_var = tmp2
+        elif len(tmp1.shape) == 1:
+          cropped_var = np.concatenate((cropped_var, tmp2))
+        else:
+          cropped_var = np.vstack((cropped_var, tmp2))
+      del hf[key]
+      hf.create_dataset(key, data = cropped_var)
+    del hf['frame_nums']
+    hf.create_dataset('frame_nums', data = new_frame_nums)
+    hf.create_dataset('original_total', data = original_total)
+
+
+# download augmented and transformed subsets
+target_path = "/content/gdrive/MyDrive/Colab data/curation_for_auto_curator/DATA_FULL_in_range_only/"
+source_path = "/content/DATA_FULL"
+Path(target_path).mkdir(parents = True, exist_ok = True)
+
+sync(source_path, target_path, 'sync')
+
+
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ cute the model head after global pooling and just use the features on a new model like LGM or SVM """
+
+
+def convert_h5_to_feature_h5(model,in_generator, h5_new_full_file_name):
+  h5c = image_tools.h5_iterative_creator(h5_new_full_file_name,
+                                        overwrite_if_file_exists=True,
+                                        max_img_height=1,
+                                        max_img_width=2048,
+                                        close_and_open_on_each_iteration=True,
+                                        color_channel=False,
+                                        add_to_existing_H5=False,
+                                        ignore_image_range_warning=False,
+                                        dtype_img = h5py.h5t.IEEE_F32LE,
+                                        dtype_labels = h5py.h5t.IEEE_F32LE)
+
+  for k in tqdm(range(in_generator.__len__())):
+    x, y = in_generator.__getitem__(k)
+    features = model_out.predict(x)
+    h5c.add_to_h5(features, y)
+for in_gen in [test_gen, val_gen, train_gen]:
+  new_name = '/feature_data/'.join(in_gen.H5_file_list[0].split('/data/'))
+  new_name = ''.join(new_name.split('____temp'))
+  Path(os.path.dirname(new_name)).mkdir(parents=True, exist_ok=True)
+  convert_h5_to_feature_h5(model,in_gen, new_name)

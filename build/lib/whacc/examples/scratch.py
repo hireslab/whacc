@@ -96,5 +96,64 @@ h5_file_list2 = utils.lister_it(h5_file_list, remove_string=['subset', 'temp', '
 print(h5_file_list2)
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # $$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    for k in range(0, 1163998, 40000):
+import matplotlib.pyplot as plt
+import h5py
+import copy
+import numpy as np
+h5_file = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/master_train_test1.h5"
+with h5py.File(h5_file, 'r') as hf:
+    # plt.plot(hf['labels'][:8000])
+    # print(len(hf['labels'][:]))
+    #
+    # print(hf['images'][0].shape)
 
+    labels2insert = copy.deepcopy(hf['labels'][:])
+
+    for k in range(0, 1163998, 40000):
+        plt.figure()
+        plt.imshow(hf['images'][k])
+
+
+h5_file = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/AH0000x000000.h5"
+with h5py.File(h5_file, 'r') as hf:
+    print(len(hf['labels'][:]))
+    hf['labels'][:] = labels2inser
+
+
+all_onsets = np.where(np.diff(labels2insert) == 1)[0]
+add2 = 1
+h5_file = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/AH0000x000000.h5"
+########### h5_file = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/master_train_test1.h5"
+
+with h5py.File(h5_file, 'r') as hf:
+    for k in np.random.choice(all_onsets, 20):
+        plt.figure()
+        plt.imshow(image_tools.img_unstacker(hf['images'][k-add2 : k+add2+1], num_frames_wide=3))
+##
+##
+##
+
+##
+
+f = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/py_touch_inds.mat"
+a = utils.loadmat(f)
+all_inds = a['all_inds']
+all_vid_inds = a['all_vid_inds']
+
+
+h5_file = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/AH0000x000000.h5"
+with h5py.File(h5_file, 'r') as hf:
+    frame_nums = copy.deepcopy(hf['trial_nums_and_frame_nums'][1, :])
+
+new_labels = np.zeros(int(np.sum(frame_nums))).astype(int)
+for ii, (i1, i2) in enumerate(utils.loop_segments(frame_nums)):
+    a = np.where(all_vid_inds==ii)[0]
+    print(ii)
+    for k in all_inds[a[0]:a[-1]]:
+        new_labels[k] = 1
+
+
+
+
+
+###
