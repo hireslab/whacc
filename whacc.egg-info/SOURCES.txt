@@ -19,6 +19,7 @@ setup.py
 ./whacc/utils.py
 ./whacc/__pycache__/__init__.cpython-38.pyc
 ./whacc/__pycache__/analysis.cpython-38.pyc
+./whacc/__pycache__/feature_maker.cpython-38.pyc
 ./whacc/__pycache__/image_tools.cpython-38.pyc
 ./whacc/__pycache__/model_maker.cpython-38.pyc
 ./whacc/__pycache__/pole_tracker.cpython-38.pyc
@@ -38,6 +39,7 @@ setup.py
 ./whacc/examples/TL_10_20_30.py
 ./whacc/examples/__init__.py
 ./whacc/examples/add_pole_times.py
+./whacc/examples/all agree analysis.py
 ./whacc/examples/copy_temp.py
 ./whacc/examples/diff_h5_creator.py
 ./whacc/examples/error_analysis_example.py
@@ -91,6 +93,7 @@ whacc/examples/SCRATCH5.py
 whacc/examples/TL_10_20_30.py
 whacc/examples/__init__.py
 whacc/examples/add_pole_times.py
+whacc/examples/all agree analysis.py
 whacc/examples/copy_temp.py
 whacc/examples/diff_h5_creator.py
 whacc/examples/error_analysis_example.py

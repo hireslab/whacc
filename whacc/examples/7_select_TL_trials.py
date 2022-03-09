@@ -37,7 +37,7 @@ import glob
 from tqdm.contrib import tzip
 import scipy.io as spio
 import h5py
-from tqdm.notebook import tqdm
+from tqdm.autonotebook import tqdm
 from matplotlib import cm
 
 import matplotlib.pyplot as plt

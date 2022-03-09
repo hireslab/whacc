@@ -259,7 +259,7 @@ feature_data['frame_nums'] =frame_class
 grouped = feature_data.groupby('frame_# get_ipython().system('pip install whacc -U')
 
 
-from tqdm.notebook import tqdm
+from tqdm.autonotebook import tqdm
 from tqdm import tqdm
 import pickle
 from whacc import utils, image_tools, transfer_learning, analysis
