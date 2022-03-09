@@ -2577,3 +2577,105 @@ pred = image_tools.get_h5_key_and_concatenate(h5, 'model_5____3lag__regular_labe
 #     # plt.plot(labels[i1:i2])
 #     if i1>10*4000:
 #         asdf
+
+"""##################################################################################################################"""
+"""##################################################################################################################"""
+"""##################################################################################################################"""
+"""##################################################################################################################"""
+"""##################################################################################################################"""
+"""##################################################################################################################"""
+
+
+
+# import matplotlib.pyplot as plt
+# from whacc.feature_maker import feature_maker
+# h5_in = '/Users/phil/Desktop/AH0407_160613_JC1003_AAAC_3lag.h5'
+#
+# FM = feature_maker(h5_in, frame_num_ind=2, delete_if_exists = True) #set frame_num_ind to an int so that we can quickly look at the transformation
+# data, data_name = FM.shift(5, save_it=False) # shift it 5 to the right, fills in with nan as needed, look at just the 5th frame num set (5th video)
+# # to see how it looks
+# print('the below name will be used to save the data in the the h5 when calling functions with save_it=True')
+# print(data_name)
+# FM.shift(5, save_it=True) # now lets save it
+#
+# data, data_name_rolling_mean_100 = FM.rolling(100, 'mean', save_it=True)  #lets do the rolling mean and save it
+#
+# data, data_name = FM.operate('diff', kwargs={'periods': 1}, save_it=False) # lets perform a diff operation
+# print(data_name)
+# print(data)
+# FM.operate('diff', kwargs={'periods': -1}, save_it=True) # now lets save it and save it
+#
+# # now lets change the operational key so we can transform some data we just transformed, specifically the rolling mean 10
+# FM.set_operation_key(data_name_rolling_mean_100)
+#
+# data, data_name_diff_100_mean = FM.operate('diff', kwargs={'periods': -50}, save_it=False) # lets check how the name will change
+# print(data_name_diff_100_mean)
+# print("notice the FD__ twice, this means the data has been transformed twice")
+# print('also notice that how the data was transformed can be seen because it is split up by ____ (4 underscores)')
+#
+# data, data_name_diff_100_mean = FM.operate('diff', kwargs={'periods': -50}, save_it=True) # save it
+#
+# a = utils.print_h5_keys(h5_in, 1, 1)
+# key_name_list = ['FD__original', 'FD__FD__FD__original_rolling_mean_W_100_SFC_0_MP_100_____diff_periods_-50____', 'FD__FD__original_rolling_mean_W_100_SFC_0_MP_100____']
+# with h5py.File(h5_in, 'r+') as h:
+#     for k in key_name_list:
+#         plt.plot(h[k][:8000, 0])
+#
+#
+
+h5_in = '/Users/phil/Desktop/AH0407_160613_JC1003_AAAC_3lag.h5'
+a = utils.print_h5_keys(h5_in, 1, 1)
+
+def rename_h5_images_to_feature_data(h5, len_shape = 2, shape_ind_1 = 2048):
+    if not utils.h5_key_exists(h5, 'images'):
+        print('images key does not exist, returning')
+        return
+    with h5py.File(h5, 'r+') as h:
+        s = h['images'].shape
+        assert len(s) == len_shape, 'length of images key does not match length check, might be actual images and not feature data'
+        assert s[1] == shape_ind_1, 'shape of ind 1 does not match, might be actual images and not feature data'
+        h['feature_data'] = h['images']
+        del h['images']
+
+temp_dir = '/Volumes/GoogleDrive-114825029448473821206/My Drive/colab_data2/model_testing_features_data/feature_data/'
+for h5_in in utils.get_h5s(temp_dir, 0):
+    rename_h5_images_to_feature_data(h5_in, len_shape = 2, shape_ind_1 = 2048)
+
+
+
+
+def rename_h5_images_to_feature_data(h5, len_shape = 2, shape_ind_1 = 2048):
+    if not utils.h5_key_exists(h5, 'feature_data'):
+        print('images key does not exist, returning')
+        return
+    with h5py.File(h5, 'r+') as h:
+        s = h['feature_data'].shape
+        assert len(s) == len_shape, 'length of images key does not match length check, might be actual images and not feature data'
+        assert s[1] == shape_ind_1, 'shape of ind 1 does not match, might be actual images and not feature data'
+        h['FD__original'] = h['feature_data']
+        del h['feature_data']
+
+temp_dir = '/Volumes/GoogleDrive-114825029448473821206/My Drive/colab_data2/model_testing_features_data/feature_data/'
+for h5_in in utils.get_h5s(temp_dir, 0):
+    rename_h5_images_to_feature_data(h5_in, len_shape = 2, shape_ind_1 = 2048)
+
+
+
+"FD__FD__XXXXX_rolling_mean_W_100_SFC_0_MP_100_____diff_periods_"
+"FD__XXXXX_rolling_mean_W_100_SFC_0_MP_100____"
+"XXXXX"
+
+"FD__FD__FD__original_rolling_mean_W_100_SFC_0_MP_100_____diff_periods_"
+"FD__FD__original_rolling_mean_W_100_SFC_0_MP_100____"
+"FD__original"
+
+
+from whacc.feature_maker import feature_maker
+h5_in = '/Users/phil/Desktop/holy_test_set_10_percent_3lag.h5'
+
+FM = feature_maker(h5_in, frame_num_ind=2, delete_if_exists = True, operational_key='FD__original')
+
+data, data_name_rolling_mean_100 = FM.rolling(11, 'mean', save_it=True)  #lets do the rolling mean and save it
+"""
+so this works fine just update whacc and try again 
+"""

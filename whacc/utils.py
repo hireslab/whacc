@@ -19,6 +19,23 @@ import platform
 import subprocess
 from scipy.signal import medfilt, medfilt2d
 
+from tqdm.autonotebook import tqdm
+
+
+from IPython.utils import io
+import pdb
+
+# def tqdm_import_helper():
+#     # with io.capture_output() as captured:  # prevent crazy printing
+#     # pdb.set_trace()
+#     from tqdm.notebook import tqdm
+#     try:
+#         for k in tqdm(range(1)):
+#             pass
+#         return True and isnotebook()
+#     except:
+#         return False
+
 
 def isnotebook():
     try:
@@ -36,10 +53,10 @@ def isnotebook():
         return False  # Probably standard Python interpreter
 
 
-if isnotebook():
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
+# if tqdm_import_helper():
+#     from tqdm.notebook import tqdm
+# else:
+#     from tqdm import tqdm
 
 
 def four_class_labels_from_binary(x):
