@@ -40,10 +40,11 @@ def isnotebook():
         return False  # Probably standard Python interpreter
 
 
-if isnotebook():
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
+
+# if isnotebook():
+#     from tqdm.notebook import tqdm
+# else:
+#     from tqdm import tqdm
 # tqdm = partial(tqdm, position=0, leave=True)
 
 ################### drive.mount('/content/gdrive')
@@ -316,7 +317,7 @@ class PoleTracking():
             hf.create_dataset('trial_nums_and_frame_nums', data=tnf)
             hf.create_dataset('in_range', data=in_range)
             hf.create_dataset('full_file_names', data=self.ascii_video_files)
-            hf.create_dataset('template_img', data = self.template_image)
+            hf.create_dataset('template_img', data=self.template_image)
             hf.create_dataset('frame_nums', data=tnf[1, :])
             hf.close()
 
@@ -539,3 +540,4 @@ class PoleTracking():
                 change_trig = False
 
         self.template_image = template_image[:, :, 0]
+
