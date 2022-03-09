@@ -9,8 +9,20 @@ import os
 from whacc import utils
 from pathlib import Path
 import warnings
+from tqdm.autonotebook import tqdm
 import pdb
+from IPython.utils import io
 
+
+# def tqdm_import_helper():
+#     with io.capture_output() as captured:  # prevent crazy printing
+#         from tqdm.notebook import tqdm
+#         try:
+#             for k in tqdm(range(1)):
+#                 pass
+#             return True and isnotebook()
+#         except:
+#             return False
 
 def isnotebook():
     try:
@@ -28,11 +40,10 @@ def isnotebook():
         return False  # Probably standard Python interpreter
 
 
-if isnotebook():
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
-
+# if tqdm_import_helper():
+#     from tqdm.notebook import tqdm
+# else:
+#     from tqdm import tqdm
 
 def stack_imgs_lag(imgs, frames_1=None, buffer=2, shift_to_the_right_by=0):
     if frames_1 is None:
@@ -66,10 +77,15 @@ def get_h5_key_and_concatenate(h5_list, key_name='labels'):
     h5_list = utils.make_list(h5_list, suppress_warning=True)
     for i, k in enumerate(h5_list):
         with h5py.File(k, 'r') as h:
+            try:
+                x = h[key_name][:]
+            except:
+                x = h[key_name]
+
             if i == 0:
-                out = np.asarray(h[key_name][:])
+                out = np.asarray(x)
             else:
-                out = np.concatenate((out, h[key_name][:]))
+                out = np.concatenate((out, x))
     return out
 
 
@@ -1196,7 +1212,6 @@ def image_transform_(IMG_SIZE, raw_X):
 
 class ImageBatchGenerator_simple(keras.utils.Sequence):
 
-
     def __init__(self, batch_size, h5_file_list, label_key='labels', IMG_SIZE=None):
 
         h5_file_list = utils.make_list(h5_file_list, suppress_warning=True)
@@ -1582,6 +1597,7 @@ def convert_h5_to_LSTM_h5(h5_file_list, lstm_h5_name, lstm_len=7, batch_size=100
     frame_nums = get_h5_key_and_concatenate(h5_file_list, 'frame_nums')
     utils.force_write_to_h5(h5creator.h5_full_file_name, frame_nums, 'frame_nums')
 
+
 #
 # class ImageBatchGenerator_feature_array(keras.utils.Sequence):
 #     """ """
@@ -1787,7 +1803,8 @@ class ImageBatchGenerator_feature_array(keras.utils.Sequence):
         self.edge_value = edge_value
         if remove_any_time_points_with_edges:
             self.edge_value = np.nan
-            print('remove_any_time_points_with_edges == True : forcing edge_value to np.nan to aid in removing these time points')
+            print(
+                'remove_any_time_points_with_edges == True : forcing edge_value to np.nan to aid in removing these time points')
 
         self.get_frame_edges()
         # self.full_edges_mask = self.full_edges_mask - (self.lstm_len // 2 - self.label_index_to_lstm_len)
@@ -1938,3 +1955,87 @@ class ImageBatchGenerator_feature_array(keras.utils.Sequence):
             self.all_edges_list.append(all_edges)
             full_edges_mask = full_edges_mask.astype(int)
             self.full_edges_mask = full_edges_mask == 0
+
+
+def rename_h5_key_from_images_to_feature(h5_in):
+    if isinstance(h5_in, list):
+        for k in h5_in:
+            rename_h5_key_from_images_to_feature(k)
+        return
+
+    if utils.h5_key_exists(h5_in, 'images'):
+        print("""'images' exists, changing it to 'FD__original'""")
+        with h5py.File(h5_in, 'r+') as h:
+            h['FD__original'] = h['images'][:]
+            del h['images']
+    else:
+        print("""'images' key does not exist, skipping""")
+
+
+# apply the below on the files and combine the things we need to combine
+def combine_and_index_feature_data(h5s_to_combine, new_h5, label_key='labels', feature_key='FD__original'):
+    h5c = h5_iterative_creator(new_h5,
+                               overwrite_if_file_exists=True,
+                               max_img_height=1,
+                               max_img_width=2048,
+                               close_and_open_on_each_iteration=True,
+                               color_channel=False,
+                               add_to_existing_H5=False,
+                               ignore_image_range_warning=False,
+                               dtype_img=h5py.h5t.IEEE_F32LE,
+                               dtype_labels=h5py.h5t.IEEE_F32LE)
+
+    h5_lengths = []
+    h5_inds_each = []
+    inds_to_h5_file_names = []
+    frame_nums_all = []
+    for i, k in enumerate(tqdm(h5s_to_combine)):
+        features = get_h5_key_and_concatenate(k, feature_key)
+        y = get_h5_key_and_concatenate(k, label_key)
+
+        h5c.add_to_h5(features, y)
+
+        h5_lengths.append(len(y))
+        h5_inds_each.append(np.arange(len(y)))
+        inds_to_h5_file_names.append(np.zeros(len(y)).astype(int) + i)
+
+        frame_nums_all.append(get_h5_key_and_concatenate(k, 'frame_nums').astype(int))
+
+    h5s_to_combine = [n.encode("ascii", "ignore") for n in h5s_to_combine]
+    rename_h5_key_from_images_to_feature(new_h5)
+
+    with h5py.File(new_h5, 'r+') as h:
+        h['all_combined_h5_names'] = h5s_to_combine
+        h['h5_lengths'] = np.asarray(h5_lengths).astype(int)
+        h['h5_inds_all'] = np.arange(np.sum(h5_lengths)).astype(int)
+        h['h5_inds_each'] = np.hstack(h5_inds_each).astype(int)
+        h['inds_to_h5_file_names'] = np.hstack(inds_to_h5_file_names).astype(int)
+        h['frame_nums'] = np.hstack(frame_nums_all).astype(int)
+        h['has_data_been_randomized'] = False
+
+
+def randomize_original_feature_data_and_inds(h5_in, rand_seed=1):
+    assert rand_seed is not None, """random seed can't be None, otherwise inds and data will not match!!!"""
+
+    with h5py.File(h5_in, 'r+') as h:
+        np.random.seed(rand_seed)
+        h['h5_inds_all'][:] = np.random.permutation(h['h5_inds_all'][:])
+        np.random.seed(rand_seed)
+        h['h5_inds_each'][:] = np.random.permutation(h['h5_inds_each'][:])
+        np.random.seed(rand_seed)
+        h['inds_to_h5_file_names'][:] = np.random.permutation(h['inds_to_h5_file_names'][:])
+        np.random.seed(rand_seed)
+        h['FD__original'][:, :] = np.random.permutation(h['FD__original'][:, :])
+
+        h['has_data_been_randomized'] = True
+
+
+def check_if_permuted_h5_matches_og_h5_indexes(h5_1, ind):
+    with h5py.File(h5_1, 'r') as h:
+        i1 = np.where(h['h5_inds_all'][:] == ind)[0]
+        x1 = h['inds_to_h5_file_names'][i1]
+        print(h['all_combined_h5_names'][x1])
+        print(h['h5_inds_all'][i1])
+        print(h['h5_inds_each'][i1])
+        print(x1)
+        print(h['FD__original'][i1, :])
