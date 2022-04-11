@@ -11,3 +11,4 @@ whacc/examples/re_pole_down_2.py
 build/lib/whacc/examples/scratch_2.py
 build/lib/whacc/examples/scratch.py
 *.DS_Store
+*.hdf5
