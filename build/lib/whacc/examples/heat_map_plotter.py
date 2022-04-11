@@ -339,7 +339,6 @@ model_ind = 43
 # model_ind = 42
 # model_ind = 45
 # model_ind = 12
-model_ind = 45
 
 threshold = .5
 """ SET THHE SOURCE OF THE LABELS YOU ARE DRAWING FROM MAKE SURE TO ADJUST MODEL IND ACCORDINGLY"""

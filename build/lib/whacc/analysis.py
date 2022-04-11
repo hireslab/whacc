@@ -225,6 +225,7 @@ class pole_plot():
 
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
+        self.frame_nums = frame_num_array
         self.onset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([0,1]))+1
         self.offset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([1,0]))
         self.onset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([0,1]))+1

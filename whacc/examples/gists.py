@@ -1256,3 +1256,30 @@ for in_gen in [test_gen, val_gen, train_gen]:
   new_name = ''.join(new_name.split('____temp'))
   Path(os.path.dirname(new_name)).mkdir(parents=True, exist_ok=True)
   convert_h5_to_feature_h5(model,in_gen, new_name)
+
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$ copy alt labels to other files  """
+
+
+
+def find_alt_labels_file(h5_in):
+  alt_label_path = os.sep.join(os.path.dirname(h5_in).split(os.sep)[:-1])+os.sep+'ALT_LABELS'
+  if os.path.isdir(alt_label_path):
+    labels_file = utils.get_h5s(alt_label_path)
+    if len(labels_file) == 1:
+      return labels_file[0]
+    else:
+      print('more than one file found in directory, ambiguous, returning None for file ...')
+      print(h5_in)
+      return None
+  else:
+    print('Valid alt labels path not found, returning None for file ...')
+    print(h5_in)
+    return None
+
+ind = 0
+labels_file = find_alt_labels_file(src_files[ind])
+
+utils.copy_over_all_non_image_keys(labels_file, src_files[ind])
