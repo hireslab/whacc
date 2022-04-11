@@ -1,7 +1,7 @@
 Metadata-Version: 2.1
 Name: whacc
-Version: 0.1.14
-Summary: largely automatic and customizable pipeline for creating a CNN to predict whiskers contacting objects
+Version: 0.1.15
+Summary: Automatic and customizable pipeline for creating a CNN + GBM to predict whiskers contacting objects
 Home-page: UNKNOWN
 Author: Phillip Maire
 Author-email: phillip.maire@gmail.com

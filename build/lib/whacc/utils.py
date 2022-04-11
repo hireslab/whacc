@@ -246,7 +246,7 @@ def get_class_info2(c, sort_by=None, include_underscore_vars=False, return_name_
     elif 'len' in sort_by.lower() or 'shape' in sort_by.lower():
         np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
         tmp1 = np.asarray([eval(k) for k in len_or_shape])
-        tmp1[tmp1==None] = np.nan
+        tmp1[tmp1 == None] = np.nan
         tmp1 = [np.max(iii) for iii in tmp1]
         ind_array = np.argsort(tmp1)
     elif 'name' in sort_by.lower():
@@ -267,9 +267,10 @@ def get_class_info2(c, sort_by=None, include_underscore_vars=False, return_name_
             k3 = '...' + k3[-end_prev_len:]
         else:
             k3 = '> ' + k3[-end_prev_len:]
-        print(k1 + ' type->   ' + k2 + '  ' +  len_or_shape_which_one[i] +'->   '+ k5 + '  ' + k3)
+        print(k1 + ' type->   ' + k2 + '  ' + len_or_shape_which_one[i] + '->   ' + k5 + '  ' + k3)
     if return_name_and_type:
         return names, type_to_print
+
 
 def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type=False, end_prev_len=40):
     def get_len_or_shape(x_in):
@@ -911,7 +912,10 @@ def stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0):
     with h5py.File(f, 'r') as h:
         x = h['frame_nums'][:]
         for ii, (k1, k2) in enumerate(tqdm(loop_segments(x), total=len(x))):
-            new_imgs = image_tools.stack_imgs_lag(h['images'][k1:k2], buffer=2, shift_to_the_right_by=0)
+            x2 = h['images'][k1:k2]
+            if len(x2.shape) == 4:
+                x2 = x2[:, :, :, 0] # only want one 'color' channel
+            new_imgs = image_tools.stack_imgs_lag(x2, buffer=2, shift_to_the_right_by=0)
             h5c.add_to_h5(new_imgs, np.ones(new_imgs.shape[0]) * -1)
 
     # copy over the other info from the OG h5 file
@@ -1460,3 +1464,19 @@ def convert_list_of_strings_for_h5(list_in):
 def intersect_all(arr1, arr2):
     """retun inndex of length len(arr1) instead of numpys length min([len(arr1), len(arr2)])"""
     return [{v: i for i, v in enumerate(arr2)}[v] for v in arr1]
+
+
+def space_check(path, min_gb=2):
+    assert shutil.disk_usage(path).free / 10 ** 9 > min_gb, """space_check function: GB limit reached, ending function"""
+
+
+def convert_to_3lag(f, f2):
+    """
+    Parameters
+    ----------
+    f : base file
+    f2 : new 3lag file (doesn't exist yet
+    """
+    assert f != f2, """can't be the same file"""
+    stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0)
+    copy_over_all_non_image_keys(f, f2)

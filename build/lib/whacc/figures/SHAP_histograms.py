@@ -244,7 +244,7 @@ for k in range(10):
 
 np.save('/Users/phil/Desktop/LIGHT_GBM/features_out_of_10', features_out_of_10)
 
-greater_than_or_equal_to = 8
+greater_than_or_equal_to = 10
 np.sum(features_out_of_10 >= greater_than_or_equal_to)
 best_features = np.where(features_out_of_10[:-41] >= greater_than_or_equal_to)[0]
 best_TOTAL_features = len(features_out_of_10[:-41])+np.where(features_out_of_10[-41:] >= greater_than_or_equal_to)[0]
