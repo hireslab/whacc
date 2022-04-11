@@ -272,6 +272,7 @@ class PoleTracking():
         final_stack = []
         len_all = 0
         start = time.time()
+        self.full_h5_name = save_directory + file_name
         h5creator = h5_iterative_creator(save_directory + file_name,
                                          overwrite_if_file_exists=True,
                                          max_img_height=self.template_image.shape[0],

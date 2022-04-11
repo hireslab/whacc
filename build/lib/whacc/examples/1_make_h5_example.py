@@ -12,6 +12,7 @@ mp4_path = '/Users/phil/Downloads/test_pole_tracker/'
 # mp4_path = "/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/delete_after_oct_2021/"
 search_term = '*.mp4'
 ##
+
 folders_with_MP4s = whacc.utils.recursive_dir_finder(mp4_path, search_term)
 print(folders_with_MP4s, sep='\n')
 # folders_with_MP4s = folders_with_MP4s[:2]
@@ -36,21 +37,23 @@ for i in PT:
     plt.imshow(PT_tmp.template_image)
 
 for i in PT:
-    PT[i].use_narrow_search_to_speed_up = False
     output_h5 = PT[i].track_all_and_save()
 
 
+
+import h5py
+with h5py.File('/Users/phil/Desktop/pipeline_test/AH0407x160609.h5', 'r') as h:
+    tmp1 = h['images'][0]
 #
-# #
-# import h5py
-# import copy
-# with h5py.File('/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AH0667x170317_JON/AH0667x170317.h5', 'r') as hf:
-#     # print(hf.keys())
-#     L = copy.deepcopy(hf['locations'][:])
+
+import copy
+with h5py.File('/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AH0667x170317_JON/AH0667x170317.h5', 'r') as hf:
+    # print(hf.keys())
+    L = copy.deepcopy(hf['locations'][:])
+
+
 #
-#
-# #
-# import matplotlib.pyplot as plt
-# a = L[0]
-# plt.plot(a[:, 0], a[:, 1], 'ko')
+import matplotlib.pyplot as plt
+a = L[0]
+plt.plot(a[:, 0], a[:, 1], 'ko')
 
