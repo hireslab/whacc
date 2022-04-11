@@ -17,7 +17,6 @@ from whacc import utils
 if utils.isnotebook():
 
     from IPython import get_ipython
-
     ipython = get_ipython()
     ipython.magic("matplotlib inline")
 from IPython import display

@@ -21,9 +21,9 @@ from scipy.signal import medfilt, medfilt2d
 
 from tqdm.autonotebook import tqdm
 
-
 from IPython.utils import io
 import pdb
+
 
 # def tqdm_import_helper():
 #     # with io.capture_output() as captured:  # prevent crazy printing
@@ -88,7 +88,7 @@ def copy_h5_key_to_another_h5(h5_to_copy_from, h5_to_copy_to, label_string_to_co
                                   data=h[label_string_to_copy_from][:])
 
 
-def lister_it(in_list, keep_strings='', remove_string=None):
+def lister_it(in_list, keep_strings='', remove_string=None, return_bool_index=False):
     if len(in_list) == 0:
         print("in_list was empty, returning in_list")
         return in_list
@@ -115,6 +115,8 @@ def lister_it(in_list, keep_strings='', remove_string=None):
         return []
     else:
         out = np.asarray(in_list)[inds]
+        if return_bool_index:
+            return out, inds
     return out
 
 
@@ -163,20 +165,152 @@ def plot_pole_tracking_max_vals(h5_file):
             plt.plot()
 
 
-def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type=False, end_prev_len=40):
+# def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type=False, end_prev_len=40):
+#     names = []
+#     type_to_print = []
+#     for k in dir(c):
+#         if include_underscore_vars is False and k[0] != '_':
+#             tmp1 = str(type(eval('c.' + k)))
+#             type_to_print.append(tmp1.split("""'""")[-2])
+#             names.append(k)
+#         elif include_underscore_vars:
+#             tmp1 = str(type(eval('c.' + k)))
+#             type_to_print.append(tmp1.split("""'""")[-2])
+#             names.append(k)
+#     len_space = ' ' * max(len(k) for k in names)
+#     len_space_type = ' ' * max(len(k) for k in type_to_print)
+#     if sort_by_type:
+#         ind_array = np.argsort(type_to_print)
+#     else:
+#         ind_array = np.argsort(names)
+#
+#     for i in ind_array:
+#         k1 = names[i]
+#         k2 = type_to_print[i]
+#         # k3 = str(c[names[i]])
+#         k3 = str(eval('c.' + names[i]))
+#         k1 = (k1 + len_space)[:len(len_space)]
+#         k2 = (k2 + len_space_type)[:len(len_space_type)]
+#         if len(k3) > end_prev_len:
+#             k3 = '...' + k3[-end_prev_len:]
+#         else:
+#             k3 = '> ' + k3[-end_prev_len:]
+#
+#         print(k1 + ' type->   ' + k2 + '  ' + k3)
+#     if return_name_and_type:
+#         return names, type_to_print
+
+def get_class_info2(c, sort_by=None, include_underscore_vars=False, return_name_and_type=False, end_prev_len=40):
+    def get_len_or_shape(x_in):
+        which_one = None
+        try:
+            len_or_shape_out = str(len(x_in))
+            which_one = 'length'
+            if type(x_in).__module__ == np.__name__:
+                len_or_shape_out = str(x_in.shape)
+                which_one = 'shape '
+        except:
+            if which_one is None:
+                len_or_shape_out = 'None'
+                which_one = 'None  '
+        return len_or_shape_out, which_one
+
     names = []
+    len_or_shape = []
+    len_or_shape_which_one = []
     type_to_print = []
+
     for k in dir(c):
         if include_underscore_vars is False and k[0] != '_':
+
             tmp1 = str(type(eval('c.' + k)))
             type_to_print.append(tmp1.split("""'""")[-2])
             names.append(k)
+            a, b = get_len_or_shape(eval('c.' + names[-1]))
+            len_or_shape.append(a)
+            len_or_shape_which_one.append(b)
         elif include_underscore_vars:
             tmp1 = str(type(eval('c.' + k)))
             type_to_print.append(tmp1.split("""'""")[-2])
             names.append(k)
+            a, b = get_len_or_shape(eval('c.' + names[-1]))
+            len_or_shape.append(a)
+            len_or_shape_which_one.append(b)
     len_space = ' ' * max(len(k) for k in names)
     len_space_type = ' ' * max(len(k) for k in type_to_print)
+    len_space_shape = ' ' * max(len(k) for k in len_or_shape)
+    if sort_by is None:
+        ind_array = np.arange(len(names))
+    elif 'type' in sort_by.lower():
+        ind_array = np.argsort(type_to_print)
+    elif 'len' in sort_by.lower() or 'shape' in sort_by.lower():
+        np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+        tmp1 = np.asarray([eval(k) for k in len_or_shape])
+        tmp1[tmp1 == None] = np.nan
+        tmp1 = [np.max(iii) for iii in tmp1]
+        ind_array = np.argsort(tmp1)
+    elif 'name' in sort_by.lower():
+        ind_array = np.argsort(names)
+    else:
+        ind_array = np.arange(len(names))
+
+    for i in ind_array:
+        k1 = names[i]
+        k2 = type_to_print[i]
+        k5 = len_or_shape[i]
+        x = eval('c.' + names[i])
+        k3 = str(x)
+        k1 = (k1 + len_space)[:len(len_space)]
+        k2 = (k2 + len_space_type)[:len(len_space_type)]
+        k5 = (k5 + len_space_shape)[:len(len_space_shape)]
+        if len(k3) > end_prev_len:
+            k3 = '...' + k3[-end_prev_len:]
+        else:
+            k3 = '> ' + k3[-end_prev_len:]
+        print(k1 + ' type->   ' + k2 + '  ' + len_or_shape_which_one[i] + '->   ' + k5 + '  ' + k3)
+    if return_name_and_type:
+        return names, type_to_print
+
+
+def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_name_and_type=False, end_prev_len=40):
+    def get_len_or_shape(x_in):
+        which_one = None
+        try:
+            len_or_shape_out = str(len(x_in))
+            which_one = 'length'
+            if type(x_in).__module__ == np.__name__:
+                len_or_shape_out = str(x_in.shape)
+                which_one = 'shape '
+        except:
+            if which_one is None:
+                len_or_shape_out = 'None'
+                which_one = 'None  '
+        return len_or_shape_out, which_one
+
+    names = []
+    len_or_shape = []
+    len_or_shape_which_one = []
+    type_to_print = []
+
+    for k in dir(c):
+        if include_underscore_vars is False and k[0] != '_':
+
+            tmp1 = str(type(eval('c.' + k)))
+            type_to_print.append(tmp1.split("""'""")[-2])
+            names.append(k)
+            a, b = get_len_or_shape(eval('c.' + names[-1]))
+            len_or_shape.append(a)
+            len_or_shape_which_one.append(b)
+        elif include_underscore_vars:
+            tmp1 = str(type(eval('c.' + k)))
+            type_to_print.append(tmp1.split("""'""")[-2])
+            names.append(k)
+            a, b = get_len_or_shape(eval('c.' + names[-1]))
+            len_or_shape.append(a)
+            len_or_shape_which_one.append(b)
+    len_space = ' ' * max(len(k) for k in names)
+    len_space_type = ' ' * max(len(k) for k in type_to_print)
+    len_space_shape = ' ' * max(len(k) for k in len_or_shape)
     if sort_by_type:
         ind_array = np.argsort(type_to_print)
     else:
@@ -185,16 +319,17 @@ def get_class_info(c, sort_by_type=True, include_underscore_vars=False, return_n
     for i in ind_array:
         k1 = names[i]
         k2 = type_to_print[i]
-        # k3 = str(c[names[i]])
-        k3 = str(eval('c.' + names[i]))
+        k5 = len_or_shape[i]
+        x = eval('c.' + names[i])
+        k3 = str(x)
         k1 = (k1 + len_space)[:len(len_space)]
         k2 = (k2 + len_space_type)[:len(len_space_type)]
+        k5 = (k5 + len_space_shape)[:len(len_space_shape)]
         if len(k3) > end_prev_len:
             k3 = '...' + k3[-end_prev_len:]
         else:
             k3 = '> ' + k3[-end_prev_len:]
-
-        print(k1 + ' type->   ' + k2 + '  ' + k3)
+        print(k1 + ' type->   ' + k2 + '  ' + len_or_shape_which_one[i] + '->   ' + k5 + '  ' + k3)
     if return_name_and_type:
         return names, type_to_print
 
@@ -404,6 +539,17 @@ def get_model_list(model_save_dir):
 
 def get_files(base_dir, search_term=''):
     """
+base_dir = '/content/gdrive/My Drive/LIGHT_GBM/FEATURE_DATA/'
+num_folders_deep = 1
+file_list = []
+for i, path in enumerate(Path(base_dir + os.sep).rglob('')):
+  x = str(path.parent) + os.path.sep + path.name
+  if i ==0:
+    file_list.append(x)
+    cnt = len(x.split(os.sep))
+  if (len(x.split(os.sep))-cnt)<=num_folders_deep:
+    file_list.append(x)
+list(set(file_list))
 
     Parameters
     ----------
@@ -417,7 +563,8 @@ def get_files(base_dir, search_term=''):
 
     """
     file_list = []
-    for path in Path(base_dir + '/').rglob(search_term):
+    for path in Path(base_dir + os.sep).rglob(search_term):
+        ##### can I edit this with default depth of one and only look x num folders deep to prevent long searchs in main folders?
         file_list.append(str(path.parent) + os.path.sep + path.name)
     file_list.sort()
     return file_list
@@ -608,7 +755,7 @@ def create_master_dataset(h5c, all_h5s_imgs, h_cont, borders=80, max_pack_val=10
     h5c : h5 creator class
     all_h5s_imgs : list of h5s with images
     h_cont : a tensor of human contacts people by frames trial H5 files (down right deep)
-    borders : for touch 0000011100000 it will find teh 111 in it and get all the bordering areas around it. points are
+    borders : for touch 0000011100000 it will find the 111 in it and get all the bordering areas around it. points are
     unique so 0000011100000 and 0000010100000 will return the same index
     max_pack_val : speeds up the process by transferring data in chunks of this max size instead of building them all up in memory
     it's a max instead of a set value because it can be if the len(IMAGES)%max_pack_val is equal to 0 or 1 it will crash, so I calculate it
@@ -765,7 +912,10 @@ def stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0):
     with h5py.File(f, 'r') as h:
         x = h['frame_nums'][:]
         for ii, (k1, k2) in enumerate(tqdm(loop_segments(x), total=len(x))):
-            new_imgs = image_tools.stack_imgs_lag(h['images'][k1:k2], buffer=2, shift_to_the_right_by=0)
+            x2 = h['images'][k1:k2]
+            if len(x2.shape) == 4:
+                x2 = x2[:, :, :, 0] # only want one 'color' channel
+            new_imgs = image_tools.stack_imgs_lag(x2, buffer=2, shift_to_the_right_by=0)
             h5c.add_to_h5(new_imgs, np.ones(new_imgs.shape[0]) * -1)
 
     # copy over the other info from the OG h5 file
@@ -811,10 +961,21 @@ def expand_single_frame_to_3_color_h5(f, f2):
 
 
 def copy_over_all_non_image_keys(f, f2):
+    """
+
+    Parameters
+    ----------
+    f : source
+    f2 : destination
+
+    Returns
+    -------
+
+    """
     k_names = print_h5_keys(f, return_list=True, do_print=False)
     k_names = lister_it(k_names, remove_string='MODEL_')
     k_names = lister_it(k_names, remove_string='images')
-    with h5py.File(f, 'r+') as h:
+    with h5py.File(f, 'r') as h:
         with h5py.File(f2, 'r+') as h2:
             for kn in k_names:
                 try:
@@ -1285,3 +1446,37 @@ def np_stats(in_arr):
 
 def h5_key_exists(h5_in, key_in):
     return key_in in print_h5_keys(h5_in, return_list=True, do_print=False)
+
+
+def overwrite_h5_key(h5_in, key_in, new_data=None):
+    exist_test = h5_key_exists(h5_in, key_in)
+    with h5py.File(h5_in, 'r+') as h:
+        if exist_test:
+            del h[key_in]
+        if new_data is not None:
+            h[key_in] = new_data
+
+
+def convert_list_of_strings_for_h5(list_in):
+    return [n.encode("ascii", "ignore") for n in list_in]
+
+
+def intersect_all(arr1, arr2):
+    """retun inndex of length len(arr1) instead of numpys length min([len(arr1), len(arr2)])"""
+    return [{v: i for i, v in enumerate(arr2)}[v] for v in arr1]
+
+
+def space_check(path, min_gb=2):
+    assert shutil.disk_usage(path).free / 10 ** 9 > min_gb, """space_check function: GB limit reached, ending function"""
+
+
+def convert_to_3lag(f, f2):
+    """
+    Parameters
+    ----------
+    f : base file
+    f2 : new 3lag file (doesn't exist yet
+    """
+    assert f != f2, """can't be the same file"""
+    stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0)
+    copy_over_all_non_image_keys(f, f2)

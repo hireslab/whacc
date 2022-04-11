@@ -2039,3 +2039,48 @@ def check_if_permuted_h5_matches_og_h5_indexes(h5_1, ind):
         print(h['h5_inds_each'][i1])
         print(x1)
         print(h['FD__original'][i1, :])
+
+
+def get_rand_bool_inds(h5_in, split_segs=None, rand_seed=1, label_key='labels', write_to_h5=True):
+    assert rand_seed is not None, """random seed can't be None, otherwise inds and data will not match!!!"""
+    if split_segs is None:
+        split_segs = get_h5_key_and_concatenate(h5_in, 'split_segs')
+    L = len(get_h5_key_and_concatenate(h5_in, label_key))
+    np.random.seed(rand_seed)
+    permuted_inds = np.random.permutation(np.arange(L))
+    all_bool_inds = np.zeros([split_segs.shape[1], L], dtype=bool)
+    for i, k in enumerate(split_segs.T):
+        i1, i2 = k[0], k[1]
+        perm_ind = np.sort(permuted_inds[i1:i2])
+        permuted_inds[i1:i2] = perm_ind
+        for kk in perm_ind:
+            all_bool_inds[i, kk] = True
+    if write_to_h5:
+        utils.overwrite_h5_key(h5_in, 'permuted_inds', permuted_inds)
+        utils.overwrite_h5_key(h5_in, 'all_bool_inds', all_bool_inds)
+    return permuted_inds, np.asarray(all_bool_inds)
+
+
+def divide_data_indexing(h5_in, split_names=['train', 'val', 'test'], split_percent_single=[0.7, 0.15, 0.15],
+                         max_len_each_set=10000, label_key='labels', write_to_h5=True):
+    L = len(get_h5_key_and_concatenate(h5_in, label_key))
+    num_divs = int(np.ceil(L / max_len_each_set))
+    split_percent_single = list(split_percent_single/np.sum(split_percent_single))
+
+    split_percentages = split_percent_single * num_divs
+    array_inds = np.arange(L)
+    split_percentages = split_percentages / np.sum(split_percentages)
+    segment_inds = list(np.split(array_inds, np.ceil(L * np.cumsum(split_percentages[:-1])).astype('int')))
+    tmp1 = [0]
+    _ = [tmp1.append(k[-1]) for k in segment_inds]
+    split_segs = np.asarray(utils.loop_segments(np.diff(tmp1), returnaslist=True))
+
+    tmp2 = split_names * num_divs
+    tmp3 = np.repeat(list(range(num_divs)), 3)
+    split_segs_names = [i1 + '_num_' + str(i2) + '_percent_' + str(int(100*i3)) for i1, i2, i3 in
+                        zip(tmp2, tmp3, split_percent_single * num_divs)]
+    if write_to_h5:
+        utils.overwrite_h5_key(h5_in, 'split_segs', split_segs)
+        utils.overwrite_h5_key(h5_in, 'split_segs_names', utils.convert_list_of_strings_for_h5(split_segs_names))
+
+    return split_segs, split_segs_names

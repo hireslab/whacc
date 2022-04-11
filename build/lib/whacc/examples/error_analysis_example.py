@@ -10,7 +10,7 @@ a2 = a[88]
 print(a2)
 pred = image_tools.get_h5_key_and_concatenate([f], a2)
 pred = ((pred > .5) * 1).flatten()
-real = image_tools.get_h5_key_and_concatenate([f], a[105])
+real = image_tools.get_h5_key_and_concatenate([f], a[105])get_class_info
 
 frame_num_array = (np.ones(60) * 4000).astype(int)
 
@@ -44,7 +44,7 @@ def display_error_types(pp, a, show_type, cnt = 0, edge_size = 2):
     return cnt
 
 h5_img = '/Users/phil/Dropbox/Colab data/H5_data/regular/AH0698_170601_PM0121_AAAA_regular.h5'
-pp = analysis.pole_plot(h5_img, pred_val=a.pred, true_val=a.real, figsize = [10, 5])
+pp = analysis.pole_plot(h5_img, pred_val=a.pred, true_val=a.real, figsize=[10, 5])
 show_type = 'join'
 cnt = -1
 

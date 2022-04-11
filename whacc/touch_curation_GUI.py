@@ -28,6 +28,7 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
     -------
 
     """
+    print("""',' = -10   '.' = 10\n';' = -100  ''' = 100\n'[' = -1000 ']' = 1000""")
     if label_write_key is None:
         label_write_key = label_read_key
     global im_ind
@@ -86,8 +87,9 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
             ind2print = copy.deepcopy(im_ind) + 1
             if im_ind < 0:
                 ind2print = len(LABELS) - (im_ind * -1) + 1
-            text.configure(text=str(ind2print) + ' of ' + str(len(LABELS)))
-            text.text = str(ind2print) + ' of ' + str(len(LABELS))
+            text.configure(text=str(ind2print%len(LABELS)) + ' of ' + str(len(LABELS)))
+            text.text = str(ind2print%len(LABELS)) + ' of ' + str(len(LABELS))
+
 
         def index_out(a, start, stop):
             """
@@ -138,6 +140,28 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
             """
             global im_ind
             move(-1)
+
+        def move_left10(event=None):
+            global im_ind
+            move(-10)
+        def move_right10(event=None):
+            global im_ind
+            move(10)
+
+        def move_left100(event=None):
+            global im_ind
+            move(-100)
+        def move_right100(event=None):
+            global im_ind
+            move(100)
+
+        def move_left1000(event=None):
+            global im_ind
+            move(-1000)
+        def move_right1000(event=None):
+            global im_ind
+            move(1000)
+
 
         def switch_label(event=None):
             """
@@ -267,6 +291,17 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         left_btn.grid(column=0, row=0, sticky=S, pady=0, padx=3)
         root.bind('<Left>', move_left)
 
+
+        root.bind(',', move_left10)
+        root.bind('.', move_right10)
+        root.bind('<Shift_R>', move_right10)
+
+        root.bind(';', move_left100)
+        root.bind("""'""", move_right100)
+
+        root.bind('[', move_left1000)
+        root.bind(']', move_right1000)
+
         switch_lab_btn = ttk.Button(c, text="switch label", command=switch_label)
         switch_lab_btn.grid(column=2, row=0, sticky=S, pady=5, padx=5)
         root.bind('`', switch_label)
@@ -281,6 +316,6 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         label_1 = ttk.Label(c)
         label_1.grid(column=0, row=10, sticky=N, pady=5, padx=5, columnspan=10, rowspan=1)
 
-        text = Label(c, text=str(im_ind) + ' of ' + str(len(LABELS)))
+        text = Label(c, text=str(im_ind%len(LABELS)) + ' of ' + str(len(LABELS)))
         text.place(x=100, y=0)
         root.mainloop()

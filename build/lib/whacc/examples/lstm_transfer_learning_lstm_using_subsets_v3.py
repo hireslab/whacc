@@ -749,10 +749,8 @@ for h5 in utils.lister_it(utils.get_h5s(base_dir), keep_strings='____temp'):  # 
     # utils.print_h5_keys(h5)
     h5_out = ''.join(h5.split('____temp'))
     print(h5, h5_out)
-    image_tools.convert_h5_to_LSTM_h5(h5, h5_out, IMG_SIZE=61)
+    image_tools.convert_h5_to_LSTM_h5(h5, h5_out)
     utils.copy_over_all_non_image_keys(h5, h5_out)
-
-
 
 train_and_val_dir = ''.join(train_and_val_dir.split('____temp')) + os.sep
 base_test_dir = ''.join(base_test_dir.split('____temp')) + os.sep
@@ -1077,14 +1075,14 @@ for num_layers_unfreeze in num_layers_to_unfreeze_list:  # in the resnet base mo
                                                         data_string_key='')
 
                 # val_gen = image_tools.ImageBatchGenerator(batch_size, info_dict['h5_val'], label_key = label_key)
-                val_gen = image_tools.ImageBatchGenerator_simple(batch_size, info_dict['h5_val'], label_key=label_key, IMG_SIZE=96)
+                val_gen = image_tools.ImageBatchGenerator_simple(batch_size, info_dict['h5_val'], label_key=label_key)
                 # train_gen = image_tools.ImageBatchGenerator(batch_size, info_dict['h5_train'], label_key = label_key)
                 train_gen = image_tools.ImageBatchGenerator_simple(batch_size, info_dict['h5_train'],
-                                                                   label_key=label_key, IMG_SIZE=96)
+                                                                   label_key=label_key)
                 # test_path = info_dict['h5_val']#TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_
 
                 # test_gen = image_tools.ImageBatchGenerator(batch_size, test_path, label_key = label_key)
-                test_gen = image_tools.ImageBatchGenerator_simple(batch_size, test_path, label_key=label_key, IMG_SIZE=96)
+                test_gen = image_tools.ImageBatchGenerator_simple(batch_size, test_path, label_key=label_key)
                 # test_gen = val_gen#TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_
                 # test_gen = image_tools.ImageBatchGenerator(batch_size, '/content/small_test.h5', label_key = label_key)#TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_TEMP_CHANGE_
 
@@ -1118,7 +1116,7 @@ for num_layers_unfreeze in num_layers_to_unfreeze_list:  # in the resnet base mo
                                     validation_data=val_gen,
                                     class_weight=class_weights,
                                     callbacks=callbacks)
-                asdfasdfasdf
+
                 for k in info_dict.keys():
                     D[k] = info_dict[k]
 
