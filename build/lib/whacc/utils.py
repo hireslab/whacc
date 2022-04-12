@@ -21,6 +21,13 @@ from scipy.signal import medfilt, medfilt2d
 
 from tqdm.autonotebook import tqdm
 
+def get_whacc_path():
+    path = os.path.dirname(whacc.__file__)
+    return path
+# def get_model_path():
+#     path = os.path.dirname(whacc.__file__) + '/whacc_data/final_CNN_model_weights/0006_cp_final_resnetV2_weights.hdf5'
+#     return path
+
 from IPython.utils import io
 import pdb
 
@@ -1480,3 +1487,8 @@ def convert_to_3lag(f, f2):
     assert f != f2, """can't be the same file"""
     stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0)
     copy_over_all_non_image_keys(f, f2)
+
+
+
+
+

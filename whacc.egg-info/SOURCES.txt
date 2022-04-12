@@ -7,7 +7,7 @@ setup.py
 ./requirements.txt
 ./whacc/.DS_Store
 ./whacc/.gitattributes
-./whacc/0006_cp_final_resnetV2_weights.hdf5
+./whacc/.gitattributes.swp
 ./whacc/__init__.py
 ./whacc/analysis.py
 ./whacc/feature_maker.py
@@ -81,6 +81,13 @@ setup.py
 ./whacc/figures/whisker_images.py
 ./whacc/figures/not_using/__init__.py
 ./whacc/figures/not_using/simulation_simple.py
+./whacc/whacc_data/.DS_Store
+./whacc/whacc_data/final_CNN_model_weights/0006_cp_final_resnetV2_weights.hdf5
+./whacc/whacc_data/final_model/.DS_Store
+./whacc/whacc_data/final_model/final_resnet50V2_full_model/.DS_Store
+./whacc/whacc_data/final_model/final_resnet50V2_full_model/saved_model.pb
+./whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/variables.data-00000-of-00001
+./whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/variables.index
 whacc/__init__.py
 whacc/analysis.py
 whacc/feature_maker.py
