@@ -1491,4 +1491,6 @@ def convert_to_3lag(f, f2):
 
 
 
-
+# "/whacc_data/final_CNN_model_weights/*.hdf5"
+#
+# git lfs track "whacc_data/*"

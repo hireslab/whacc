@@ -13,6 +13,6 @@ build/lib/whacc/examples/scratch.py
 *.DS_Store
 
 /whacc/whacc_data/
-
 build/lib/whacc/whacc_data/final_CNN_model/0006_cp_final_resnetV2_weights.hdf5
 build/lib/whacc/whacc_data/final_CNN_model_weights/0006_cp_final_resnetV2_weights.hdf5
+*.data-00000-of-00001
