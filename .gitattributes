@@ -1,3 +1,12 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/*data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+whacc/whacc_data/*data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+whacc/whacc_data/* filter=lfs diff=lfs merge=lfs -text
+
 whacc_data/final_model/final_resnet50V2_full_model/variables/*data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+whacc_data/*data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+whacc_data/* filter=lfs diff=lfs merge=lfs -text
+whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/*data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+whacc/whacc_data/*data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+whacc/whacc_data/* filter=lfs diff=lfs merge=lfs -text
