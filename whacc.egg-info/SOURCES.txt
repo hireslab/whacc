@@ -35,6 +35,7 @@ setup.py
 ./whacc/examples/4_augment_H5_example.py
 ./whacc/examples/5_split_data_for_retrain_example.py
 ./whacc/examples/6_retrain_example.py
+./whacc/examples/7.5_convert_h5_to_features.py
 ./whacc/examples/7_select_TL_trials.py
 ./whacc/examples/8_make_feature_data.py
 ./whacc/examples/CNN_+lightGBM_V5_Testing_GPU_RAM_limits_V2.py
@@ -48,6 +49,7 @@ setup.py
 ./whacc/examples/diff_h5_creator.py
 ./whacc/examples/error_analysis_example.py
 ./whacc/examples/full_pipeline.py
+./whacc/examples/full_pipeline_no_transfer_learning.py
 ./whacc/examples/gists.py
 ./whacc/examples/gui_example.py
 ./whacc/examples/h5_tester.py
@@ -110,6 +112,7 @@ whacc/examples/3_make_subset_H5_example.py
 whacc/examples/4_augment_H5_example.py
 whacc/examples/5_split_data_for_retrain_example.py
 whacc/examples/6_retrain_example.py
+whacc/examples/7.5_convert_h5_to_features.py
 whacc/examples/7_select_TL_trials.py
 whacc/examples/8_make_feature_data.py
 whacc/examples/CNN_+lightGBM_V5_Testing_GPU_RAM_limits_V2.py
@@ -123,6 +126,7 @@ whacc/examples/copy_temp.py
 whacc/examples/diff_h5_creator.py
 whacc/examples/error_analysis_example.py
 whacc/examples/full_pipeline.py
+whacc/examples/full_pipeline_no_transfer_learning.py
 whacc/examples/gists.py
 whacc/examples/gui_example.py
 whacc/examples/h5_tester.py

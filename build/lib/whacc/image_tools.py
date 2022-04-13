@@ -2084,3 +2084,17 @@ def divide_data_indexing(h5_in, split_names=['train', 'val', 'test'], split_perc
         utils.overwrite_h5_key(h5_in, 'split_segs_names', utils.convert_list_of_strings_for_h5(split_segs_names))
 
     return split_segs, split_segs_names
+
+def convert_to_3lag(f, f2):
+    """
+    Parameters
+    ----------
+    f : base file
+    f2 : new 3lag file (doesn't exist yet
+    """
+    assert f != f2, """can't be the same file"""
+    if os.path.isfile(f2):
+        utils.open_folder(os.path.dirname(f2))
+        assert False, """\nthe 3lag file you want to create already exists please delete it you you want to overwrite\n""" + f2 + "\nopening folder..."
+    utils.stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0)
+    utils.copy_over_all_non_image_keys(f, f2)
