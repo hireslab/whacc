@@ -19,11 +19,14 @@ from datetime import datetime
 import pytz
 import json
 
-
-# import sys
-# sys.path.append('/opt/conda/lib/python3.7/site-packages')
-# bd2 = '/home/jupyter/'
-
+def load_final_model():
+    mod_path = utils.get_whacc_path() + '/whacc_data/final_model/final_resnet50V2_full_model'
+    mod = keras.models.load_model(mod_path)
+    # mod.compile()
+    num_layers_in_base_model = 190 #used originally to chop different base models kept for posterity
+    mod = Model(mod.input, mod.layers[num_layers_in_base_model +1].output) # cut off head
+    mod.compile()
+    return mod
 
 def build_model(info_dict, labels, model_name_str, base_learning_rate=0.00001, dropout_val=None, class_numbers=None,
                 IMG_SIZE=96):

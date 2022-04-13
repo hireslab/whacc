@@ -1477,17 +1477,6 @@ def space_check(path, min_gb=2):
     assert shutil.disk_usage(path).free / 10 ** 9 > min_gb, """space_check function: GB limit reached, ending function"""
 
 
-def convert_to_3lag(f, f2):
-    """
-    Parameters
-    ----------
-    f : base file
-    f2 : new 3lag file (doesn't exist yet
-    """
-    assert f != f2, """can't be the same file"""
-    stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0)
-    copy_over_all_non_image_keys(f, f2)
-
 
 
 

@@ -276,3 +276,36 @@ def total_rolling_operation_h5_wrapper(FM, window, operation, key_to_operate_on,
     if save_it:
         utils.overwrite_h5_key(FM.h5_in, mod_key_name, all_data)
     return all_data
+
+
+def convert_h5_to_feature_h5(model, in_generator, h5_new_full_file_name=None):
+    assert len(in_generator.H5_file_list) == 1, 'generator must be made from a single H5 file for now can change later'
+    # this is due to needing to copy over the other keys like frame nums will need to combine it!!
+    # see below line
+    # utils.copy_over_all_non_image_keys(in_generator.H5_file_list[0], h5_new_full_file_name)
+    if h5_new_full_file_name is None:
+        if len(in_generator.H5_file_list) == 1:
+            h5_new_full_file_name = in_generator.H5_file_list[0].replace('.h5', '_feature_data.h5')
+        else:
+            assert False, """if generator contains more than one file, 'h5_new_full_file_name' can not be none, please name it yourself"""
+
+    h5c = image_tools.h5_iterative_creator(h5_new_full_file_name,
+                                           overwrite_if_file_exists=True,
+                                           max_img_height=1,
+                                           max_img_width=2048,
+                                           close_and_open_on_each_iteration=True,
+                                           color_channel=False,
+                                           add_to_existing_H5=False,
+                                           ignore_image_range_warning=False,
+                                           dtype_img=h5py.h5t.IEEE_F32LE,
+                                           dtype_labels=h5py.h5t.IEEE_F32LE)
+
+    for k in tqdm(range(in_generator.__len__())):
+        x, y = in_generator.__getitem__(k)
+        features = model.predict(x)
+        h5c.add_to_h5(features, y)
+    with h5py.File(h5_new_full_file_name, 'r+') as h:
+        h['FD__original'] = h['images'][:]
+        del h['images']
+
+    utils.copy_over_all_non_image_keys(in_generator.H5_file_list[0], h5_new_full_file_name)
