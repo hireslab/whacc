@@ -1,4 +1,7 @@
 whacc_data/* filter=lfs diff=lfs merge=lfs -text
-whacc_data/final_model* filter=lfs diff=lfs merge=lfs -text
-whacc_data/final_model/final_resnet50V2_full_model* filter=lfs diff=lfs merge=lfs -text
-whacc_data/final_model/final_resnet50V2_full_model/variables* filter=lfs diff=lfs merge=lfs -text
+whacc_data/final_model/* filter=lfs diff=lfs merge=lfs -text
+whacc_data/final_model/final_resnet50V2_full_model/* filter=lfs diff=lfs merge=lfs -text
+whacc_data/final_model/final_resnet50V2_full_model/variables/* filter=lfs diff=lfs merge=lfs -text
+whacc_data/final_model/final_resnet50V2_full_model/assets/* filter=lfs diff=lfs merge=lfs -text
+whacc_data/*.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
+
