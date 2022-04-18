@@ -57,8 +57,8 @@ for smooth_it_by in tqdm([3, 7, 11, 15, 21, 41, 61]):
 win = 1
 # key_to_operate_on = 'FD__original'
 op = np.std
-mod_key_name = 'DF_TOTAL_std_' + str(win) +  '_of_'
-all_keys = utils.lister_it(utils.print_h5_keys(FM.h5_in, 1, 0), 'FD__', 'DF_TOTAL')
+mod_key_name = 'FD_TOTAL_std_' + str(win) +  '_of_'
+all_keys = utils.lister_it(utils.print_h5_keys(FM.h5_in, 1, 0), 'FD__', 'FD_TOTAL')
 for key_to_operate_on in tqdm(all_keys):
     data_out = total_rolling_operation_h5_wrapper(FM, win, op, key_to_operate_on, mod_key_name = mod_key_name, save_it = True)
 

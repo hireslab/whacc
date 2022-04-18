@@ -81,7 +81,7 @@ class feature_maker():
         self.set_data_and_frame(frame_num_ind)
         index_features_delete_the_rest
 
-    def set_data_inds(self, ind):
+    def set_data_inds(self, ind):  # frame nums used ot extract below in 'set_operation_key'
         tmp_inds = np.asarray(utils.loop_segments(self.all_frame_nums, returnaslist=True))
         if ind is None:
             self.data_inds = [tmp_inds[0][0], tmp_inds[-1][-1]]
@@ -96,13 +96,13 @@ class feature_maker():
             if self.frame_num_ind is None:
                 self.data = pd.DataFrame(copy.deepcopy(h[self.operational_key][:]))
             else:
-                a = self.data_inds
+                a = self.data_inds  # just the current frame numbers
                 self.data = pd.DataFrame(copy.deepcopy(h[self.operational_key][a[0]:a[1]]))
 
     def init_h5_data_key(self, data_key, delete_if_exists=False):
         key_exists = utils.h5_key_exists(self.h5_in, data_key)
         assert not (
-                    key_exists and not delete_if_exists), "key exists, if you want to overwrite set 'delete_if_exists' = True"
+                key_exists and not delete_if_exists), "key exists, if you want to overwrite set 'delete_if_exists' = True"
         with h5py.File(self.h5_in, 'r+') as x:
             if key_exists and delete_if_exists:
                 print('deleting key to overwrite it')
@@ -228,22 +228,127 @@ class feature_maker():
                 h[key_name][a[0]:a[1]] = data
         self.set_data_and_frame(self._frame_num_ind_save_)  # set data back to what it was when user set it
 
+    def total_rolling_operation(self, data_in, win, operation_function, shift_from_center=0):
+        """
+        NOTE: for making feature data proper key names for saving is 'FD_TOTAL_' folowed by operation e.g. 'FD_TOTAL_nanstd'
+        Parameters
+        ----------
+        data_in : 2D matrix
+        win : window size
+        operation_function : function to be applies to each window e.g. np.nanmean, note DON'T include parentheses
+        shift_from_center : num units shift from center
 
-def total_rolling_operation(data_in, win, operation_function, shift_from_center=0):
-    """
-    NOTE: for making feature data proper key names for saving is 'FD_TOTAL_' folowed by operation e.g. 'FD_TOTAL_nanstd'
-    Parameters
-    ----------
-    data_in : 2D matrix
-    win : window size
-    operation_function : function to be applies to each window e.g. np.nanmean, note DON'T include parentheses
-    shift_from_center : num units shift from center
+        Returns
+        -------
+        data_out: output data
+        is_nan_inds: bool array indexing where nans were
+        """
+        assert win % 2 == 1, 'window must be odd'
+        mid = win // 2
+        pad = np.zeros([win, data_in.shape[1]]) * np.nan
 
-    Returns
-    -------
-    data_out: output data
-    is_nan_inds: bool array indexing where nans were
-    """
+        L_pad = pad[:mid - shift_from_center]
+        R_pad = pad[:mid + shift_from_center]
+
+        data_in = np.vstack([L_pad, data_in, R_pad])
+
+        is_nan_inds = []
+        data_out = []
+        for k in range(data_in.shape[0] - win + 1):
+            x = data_in[k:(k + win)]
+            data_out.append(operation_function(x))
+            is_nan_inds.append(np.any(np.isnan(x)))
+        return np.asarray(data_out), np.asarray(is_nan_inds)
+
+    def total_rolling_operation_h5_wrapper(self, window, operation, key_to_operate_on, mod_key_name=None,
+                                           save_it=False,
+                                           shift_from_center=0):
+        if save_it:
+            assert mod_key_name is not None, """if save_it is True, 'mod_key_name' must not be None e.g. 'FD_TOTAL_std_1_of_'"""
+        all_data = []
+        with h5py.File(self.h5_in, 'r') as h:
+            frame_nums = h['frame_nums'][:]
+            for i, (i1, i2) in enumerate(utils.loop_segments(frame_nums)):
+                data_out, is_nan_inds = self.total_rolling_operation(h[key_to_operate_on][i1:i2, :], window, operation,
+                                                                     shift_from_center=shift_from_center)
+                all_data.append(data_out)
+        all_data = np.hstack(all_data)
+        mod_key_name = mod_key_name + key_to_operate_on
+        if save_it:
+            utils.overwrite_h5_key(self.h5_in, mod_key_name, all_data)
+        return all_data
+
+
+from tqdm.auto import tqdm
+import numpy as np
+
+########################################################################################################################
+########################################################################################################################
+h5_feature_data = '/Users/phil/Desktop/pipeline_test/AH0407x160609_3lag_feature_data.h5'
+FM = feature_maker(h5_feature_data, operational_key='FD__original', delete_if_exists=True)
+
+for periods in tqdm([-5]):
+    data, key_name = FM.shift(periods, save_it=True)
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+# from whacc.feature_maker import feature_maker, total_rolling_operation_h5_wrapper
+
+
+for periods in tqdm([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]):
+    data, key_name = FM.shift(periods, save_it=True)
+
+for smooth_it_by in tqdm([3, 7, 11, 15, 21, 41, 61]):
+    data, key_name = FM.rolling(smooth_it_by, 'mean', save_it=True)
+
+for periods in tqdm([-50, -20, -10, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 10, 20, 50]):
+    data, key_name = FM.operate('diff', kwargs={'periods': periods}, save_it=True)
+
+for smooth_it_by in tqdm([3, 7, 11, 15, 21, 41, 61]):
+    data, key_name = FM.rolling(smooth_it_by, 'std', save_it=True)
+
+win = 1
+# key_to_operate_on = 'FD__original'
+op = np.std
+mod_key_name = 'FD_TOTAL_std_' + str(win) + '_of_'
+all_keys = utils.lister_it(utils.print_h5_keys(FM.h5_in, 1, 0), 'FD__', 'FD_TOTAL')
+for key_to_operate_on in tqdm(all_keys):
+    data_out = FM.total_rolling_operation_h5_wrapper(win, op, key_to_operate_on, mod_key_name=mod_key_name,
+                                                     save_it=True)
+
+utils.get_selected_features(greater_than_or_equal_to=4)
+
+inds = fd_dict['features_used_of_10'] >= 4
+tmp1 = fd_dict['full_feature_names_and_neuron_nums'][inds]
+import numpy as np
+
+tmp2 = np.unique(fd_dict['full_neuron_nums'][inds])
+
+for k in tmp1:
+    print(k)
+
+"""
+'FD_TOTAL_std_1_of_original_diff_periods_3',
+'FD_TOTAL_std_1_of_original_rolling_mean_W_3_SFC_0_MP_3',
+'FD_TOTAL_std_1_of_original_rolling_mean_W_7_SFC_0_MP_7',
+'FD_TOTAL_std_1_of_original_rolling_mean_W_11_SFC_0_MP_11',
+'FD_TOTAL_std_1_of_original_shift_3', 'FD_TOTAL_std_1_of_original'],
+
+do those first then take any of the completed data from them that are used as single features 
+
+then save the TOTAL operations and singles, 
+
+then go through all the singles
+
+"""
+
+len(utils.lister_it(tmp1, '_diff_'))
+
+h52 = '/Users/phil/Desktop/pipeline_test/AH0407x160609_3lag_feature_data.h5'
+utils.print
+
+
+def total_rolling_sliding_window_view(data_in, win, operation_function, shift_from_center=0):
     assert win % 2 == 1, 'window must be odd'
     mid = win // 2
     pad = np.zeros([win, data_in.shape[1]]) * np.nan
@@ -252,160 +357,8 @@ def total_rolling_operation(data_in, win, operation_function, shift_from_center=
     R_pad = pad[:mid + shift_from_center]
 
     data_in = np.vstack([L_pad, data_in, R_pad])
-
-    is_nan_inds = []
-    data_out = []
-    for k in range(data_in.shape[0] - win + 1):
-        x = data_in[k:(k + win)]
-        data_out.append(operation_function(x))
-        is_nan_inds.append(np.any(np.isnan(x)))
-    return np.asarray(data_out), np.asarray(is_nan_inds)
-
-
-def total_rolling_operation_h5_wrapper(FM, window, operation, key_to_operate_on, mod_key_name=None, save_it=False,
-                                       shift_from_center=0):
-    if save_it:
-        assert mod_key_name is not None, """if save_it is True, 'mod_key_name' must not be None e.g. 'FD_TOTAL_std_1_of_'"""
-    all_data = []
-    with h5py.File(FM.h5_in, 'r') as h:
-        frame_nums = h['frame_nums'][:]
-        for i, (i1, i2) in enumerate(utils.loop_segments(frame_nums)):
-            data_out, is_nan_inds = total_rolling_operation(h[key_to_operate_on][i1:i2, :], window, operation,
-                                                            shift_from_center=shift_from_center)
-            all_data.append(data_out)
-    all_data = np.hstack(all_data)
-    mod_key_name = mod_key_name + key_to_operate_on
-    if save_it:
-        utils.overwrite_h5_key(FM.h5_in, mod_key_name, all_data)
-    return all_data
-
-
-def convert_h5_to_feature_h5(model, in_generator, h5_new_full_file_name=None):
-    assert len(in_generator.H5_file_list) == 1, 'generator must be made from a single H5 file for now can change later'
-    # this is due to needing to copy over the other keys like frame nums will need to combine it!!
-    # see below line
-    # utils.copy_over_all_non_image_keys(in_generator.H5_file_list[0], h5_new_full_file_name)
-    if h5_new_full_file_name is None:
-        if len(in_generator.H5_file_list) == 1:
-            h5_new_full_file_name = in_generator.H5_file_list[0].replace('.h5', '_feature_data.h5')
-        else:
-            assert False, """if generator contains more than one file, 'h5_new_full_file_name' can not be none, please name it yourself"""
-
-    h5c = image_tools.h5_iterative_creator(h5_new_full_file_name,
-                                           overwrite_if_file_exists=True,
-                                           max_img_height=1,
-                                           max_img_width=2048,
-                                           close_and_open_on_each_iteration=True,
-                                           color_channel=False,
-                                           add_to_existing_H5=False,
-                                           ignore_image_range_warning=False,
-                                           dtype_img=h5py.h5t.IEEE_F32LE,
-                                           dtype_labels=h5py.h5t.IEEE_F32LE)
-
-    for k in tqdm(range(in_generator.__len__())):
-        x, y = in_generator.__getitem__(k)
-        features = model.predict(x)
-        h5c.add_to_h5(features, y)
-    with h5py.File(h5_new_full_file_name, 'r+') as h:
-        h['FD__original'] = h['images'][:]
-        del h['images']
-
-    utils.copy_over_all_non_image_keys(in_generator.H5_file_list[0], h5_new_full_file_name)
-
-
-def get_feature_data_names(feature_list, n=2048):
-    featuredata_names = [k.replace('FD__', '').replace('____', '') for k in feature_list]
-    final_feature_names = []
-    names = []
-    nums = []
-    for i, (k1, k2) in enumerate(zip(featuredata_names, feature_list)):
-        if '_TOTAL_' in k2:
-            names.append(k1)
-            nums.append(np.arange(1))
-            final_feature_names.append(k1)
-        else:
-
-            names.append(np.repeat(k1, n))
-            nums.append(np.arange(n))
-            final_feature_names.append([i1 + '_' + str(i2) for i1, i2 in zip(names[-1], nums[-1])])
-    out = [np.hstack(k) for k in [final_feature_names, names, nums, featuredata_names]]
-    out[0] = list(out[0])
-    out[-1] = list(out[-1])
-    return out
-
-
-def standard_feature_generation(h5_feature_data):
-    FM = feature_maker(h5_feature_data, operational_key='FD__original', delete_if_exists=True)
-
-    for periods in tqdm([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]):
-        data, key_name = FM.shift(periods, save_it=True)
-
-    for smooth_it_by in tqdm([3, 7, 11, 15, 21, 41, 61]):
-        data, key_name = FM.rolling(smooth_it_by, 'mean', save_it=True)
-
-    for periods in tqdm([-50, -20, -10, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 10, 20, 50]):
-        data, key_name = FM.operate('diff', kwargs={'periods': periods}, save_it=True)
-
-    for smooth_it_by in tqdm([3, 7, 11, 15, 21, 41, 61]):
-        data, key_name = FM.rolling(smooth_it_by, 'std', save_it=True)
-
-    win = 1
-    # key_to_operate_on = 'FD__original'
-    op = np.std
-    mod_key_name = 'FD_TOTAL_std_' + str(win) + '_of_'
-    all_keys = utils.lister_it(utils.print_h5_keys(FM.h5_in, 1, 0), 'FD__', 'FD_TOTAL')
-    for key_to_operate_on in tqdm(all_keys):
-        data_out = total_rolling_operation_h5_wrapper(FM, win, op, key_to_operate_on, mod_key_name=mod_key_name,
-                                                      save_it=True)
-
-
-def load_selected_features(h5_in, feature_index=None):
-    """
-
-    Parameters
-    ----------
-    h5_in : full directory of the full feature h5 file 84,009
-    feature_index : bool array of len 84,009
-
-    Returns
-    -------
-
-    """
-    d = utils.load_feature_data()
-    feature_list = d['feature_list_unaltered']
-    if feature_index is None:
-        feature_index = d['features_used_of_10_bool'][:]
-    feature_index = utils.make_list(feature_index)
-
-    if isinstance(h5_in, list):
-        all_x = []
-        all_y = []
-        for k in h5_in:
-            tmp_x, tmp_y = load_selected_features(k, feature_list)
-            all_x.append(tmp_x)
-            all_y.append(tmp_y)
-            del tmp_x, tmp_y
-
-        all_x = np.vstack(all_x)
-        all_y = np.hstack(all_y)
-        return all_x, all_y
-
-    all_x = None
-    for k in tqdm(feature_list):
-        if all_x is None:
-            all_x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
-            inds = feature_index[:all_x.shape[1]];
-            del feature_index[:all_x.shape[1]]
-            all_x = all_x[:, inds]
-        else:
-            x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
-            if len(x.shape) > 1:
-                inds = feature_index[:x.shape[1]];
-                del feature_index[:x.shape[1]]
-                x = x[:, inds]
-                all_x = np.hstack((all_x, x))
-            else:
-                inds = feature_index.pop(0)  # single true or false to include the "TOTAL" variables
-                if inds:
-                    all_x = np.hstack((all_x, x[:, None]))
-    return all_x
+    w = data_in.shape[1]
+    data_in = np.lib.stride_tricks.sliding_window_view(data_in, (win, w))
+    data_in = np.reshape(data_in, [-1, win * w])
+    data_out = operation_function(data_in, axis=1)
+    return np.asarray(data_out)

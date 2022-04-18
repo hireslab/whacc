@@ -42,6 +42,8 @@ div_by = 4
 FD_img = FD__original-np.min(FD__original)
 FD_img = ((FD_img/np.max(FD_img))*255).astype(np.uint8)
 cc = np.corrcoef(FD_img, rowvar=False)
+plt.figure()
+sns.heatmap(cc)
 cc, sorted_inds = cluster_corr(cc, div_by) # number here sets threshold for clustering, higher results in more cluster
 plt.figure()
 sns.heatmap(cc)
@@ -59,7 +61,7 @@ sns.heatmap(cc)
 FD_img = FD_img[:, sorted_inds] # sort features by clustering
 
 expand_by = 1000 # size of whisker and feature frames, so total will (be expand_by*2 by expand_by)
-bd = '/Volumes/GoogleDrive-114825029448473821206/My Drive/LIGHT_GBM/trash/'
+bd = '/Volumes/GoogleDrive-114825029448473821206/My Drive/LIGHT_GBM/final_video/' + os.sep
 Path(bd).mkdir(parents=True, exist_ok=True)
 width = 32
 height = 64
@@ -75,13 +77,16 @@ for i, (img, pole_img) in enumerate(tqdm(zip(FD_img, images), total=len(images))
     if i>999999999:
         break
 
+
+
+# bd = '/Volumes/GoogleDrive-114825029448473821206/My Drive/LIGHT_GBM/final_video/final_small_100_frames/'
 cd_to = """cd """ + '''"'''+bd+'''"'''
 mp4_file_name = 'out12.mp4'
-mp4_file_name = 'out'+str(div_by)+'.mp4'
+mp4_file_name = 'final_example_vid_divby_'+str(div_by)+'.mp4'
 os.system(cd_to + """ && ffmpeg -y -framerate 15 -i frame%012d.png -c:v libx264 -crf 0 """ + mp4_file_name)
 
 
 #below for quick time compatible
-mp4_file_name = 'movie2.mp4'
+mp4_file_name = 'quicktime_compatible_final_example_vid_divby_'+str(div_by)+'.mp4'
 os.system(cd_to + """ && ffmpeg -y -framerate 20 -i frame%012d.png -vcodec libx264 -pix_fmt yuv420p -lossless 1  """ + mp4_file_name)
 

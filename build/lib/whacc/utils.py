@@ -1,3 +1,6 @@
+from whacc import PoleTracking, model_maker
+from whacc.feature_maker import convert_h5_to_feature_h5, standard_feature_generation, load_selected_features
+
 import shutil
 
 import numpy as np
@@ -18,30 +21,205 @@ import whacc
 import platform
 import subprocess
 from scipy.signal import medfilt, medfilt2d
-
+import pickle
 from tqdm.autonotebook import tqdm
+
+
+def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
+    bd_base_name = os.path.basename(os.path.normpath(bd))
+    # load model once in the beginning
+    RESNET_MODEL = model_maker.load_final_model()  # NOTE: there will be a warning since this likely isn't optimized for GPU, this is fine
+    fd = load_feature_data()  # load feature data info
+    while True:  # once a   ll files are
+        time_list = []
+        start = time.time()
+        grab_file_list = True
+        while grab_file_list:  # continuously look for files to run
+            # get files that tell us which mp4s to process
+            list_of_file_dicts = np.asarray(get_files(bd, '*file_list_for_batch_processing.pkl'))
+            # sort it by the newest first since we we edit it each time (becoming the newest file)
+            # this ensures we finished one set completely first
+            inds = np.flip(np.argsort([os.path.getctime(k) for k in list_of_file_dicts]))
+            list_of_file_dicts = list_of_file_dicts[inds]
+            if len(list_of_file_dicts) == 0:
+                print('FINISHED PROCESSING')
+                assert False, "FINISHED PROCESSING no more files to process"
+            # load file dictionary
+            file_dict = load_obj(list_of_file_dicts[0])
+            # get base directory for current videos we are processing
+            mp4_bd = os.path.dirname(list_of_file_dicts[0])
+            # copy folder structure for the finished mp4s and predictions to go to
+            copy_folder_structure(bd, os.path.normpath(bd) + '_FINISHED')
+            # check if all the files have already been processes
+            if np.all(file_dict['is_processed'] == True):
+                x = list_of_file_dicts[
+                    0]  # copy the instruction file with list of mp4s to final directory we are finished
+                shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
+                x = os.path.dirname(x) + os.sep + 'template_img.png'
+                shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
+            else:
+                grab_file_list = False  # ready to run data
+
+        # overwrite local folder to copy files to
+        if os.path.exists(local_temp_dir):
+            shutil.rmtree(local_temp_dir)
+        Path(local_temp_dir).mkdir(parents=True, exist_ok=True)
+        # copy over mp4s and template image to local directory
+        x = os.sep + 'template_img.png'
+        template_dir = local_temp_dir + x
+        shutil.copy(mp4_bd + x, template_dir)
+        process_these_videos = np.where(file_dict['is_processed'] == False)[0][:video_batch_size]
+        for i in process_these_videos:
+            x = os.sep + os.path.basename(file_dict['mp4_names'][i])
+            shutil.copy(mp4_bd + x, local_temp_dir + x)
+
+        # track the mp4s for the pole images
+        PT = PoleTracking(video_directory=local_temp_dir, template_png_full_name=template_dir)
+        PT.track_all_and_save()
+
+        # convert the images to '3lag' images
+        #  h5_in = '/Users/phil/Desktop/temp_dir/AH0407x160609.h5'
+        h5_in = PT.full_h5_name
+        h5_3lag = h5_in.replace('.h5', '_3lag.h5')
+        image_tools.convert_to_3lag(h5_in, h5_3lag)
+
+        # convert to feature data
+        # h5_3lag = '/Users/phil/Desktop/temp_dir/AH0407x160609_3lag.h5'
+        h5_feature_data = h5_3lag.replace('.h5', '_feature_data.h5')
+        in_gen = image_tools.ImageBatchGenerator(500, h5_3lag, label_key='labels')
+        convert_h5_to_feature_h5(RESNET_MODEL, in_gen, h5_feature_data)
+
+        # delete 3lag don't it need anymore
+        os.remove(h5_3lag)
+        # h5_feature_data = '/Users/phil/Desktop/temp_dir/AH0407x160609_3lag_feature_data.h5'
+        # generate all the modified features (41*2048)+41 = 84,009
+        standard_feature_generation(h5_feature_data)
+        all_x = load_selected_features(h5_feature_data)
+        # delete the big o' file
+        file_nums = str(process_these_videos[0] + 1) + '_to_' + str(process_these_videos[-1] + 1) + '_of_' + str(
+            len(file_dict['is_processed']))
+        h5_final = h5_in.replace('.h5', '_final_to_combine_' + file_nums + '.h5')
+        print(h5_final)
+        with h5py.File(h5_final, 'w') as h:
+            h['final_3095_features'] = all_x
+        copy_over_all_non_image_keys(h5_in, h5_final)
+        # then if you want you can copy the images too maybe just save as some sort of mp4 IDK
+        os.remove(h5_feature_data)
+        x = os.path.dirname(list_of_file_dicts[0]) + os.sep
+        dst = x.replace(bd_base_name, bd_base_name + '_FINISHED') + os.path.basename(h5_final)
+        shutil.copy(h5_final, dst)
+
+        for k in process_these_videos:  # save the dict file so that we know the video has been processed
+            file_dict['is_processed'][k] = True
+        save_obj(file_dict, list_of_file_dicts[0])
+
+        # move the mp4s to the final dir
+        for i in process_these_videos:
+            x = mp4_bd + os.sep + os.path.basename(file_dict['mp4_names'][i])
+            shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
+        time_list.append(time.time() - start)
+
+
+def auto_combine_final_h5s(bd, delete_extra_files=True):
+    """
+
+    Parameters
+    ----------
+    bd : just put your base directory, it will automatically load the pkl file and check if all the videos are processed
+    if that is the case it will combine them and by default
+    delete_extra_files : delete the files after combining the final one.
+    Returns
+    -------
+
+    """
+    finished_sessions = get_files(bd, '*file_list_for_batch_processing.pkl')
+    for f in finished_sessions:
+        file_dict = load_obj(f)
+        if np.all(file_dict['is_processed'] == True):
+            h5_file_list_to_combine = os_sorted(get_files(os.path.dirname(f), '*_final_to_combine_*'))
+            if len(h5_file_list_to_combine) > 0:
+                combine_final_h5s(h5_file_list_to_combine, delete_extra_files=delete_extra_files)
+
+
+def combine_final_h5s(h5_file_list_to_combine, delete_extra_files=False):
+    keys = ['file_name_nums', 'final_3095_features', 'frame_nums', 'full_file_names', 'in_range', 'labels',
+            'locations_x_y', 'max_val_stack']
+    fn = h5_file_list_to_combine[0].split('final')[0] + 'final_combined.h5'
+    trial_nums_and_frame_nums = []
+    for k in h5_file_list_to_combine:
+        trial_nums_and_frame_nums.append(image_tools.get_h5_key_and_concatenate(k, 'trial_nums_and_frame_nums'))
+    trial_nums_and_frame_nums = np.hstack(trial_nums_and_frame_nums)
+
+    with h5py.File(fn, 'w') as h:
+        for k in keys:
+            out = image_tools.get_h5_key_and_concatenate(h5_file_list_to_combine, k)
+            h[k] = out
+        h['template_img'] = image_tools.get_h5_key_and_concatenate(h5_file_list_to_combine[0], 'template_img')
+        h['multiplier'] = image_tools.get_h5_key_and_concatenate(h5_file_list_to_combine[0], 'multiplier')
+        h['trial_nums_and_frame_nums'] = trial_nums_and_frame_nums
+    if delete_extra_files:
+        for k in h5_file_list_to_combine:
+            os.remove(k)
+
+
+def make_mp4_list_dict(video_directory):
+    tmpd = dict()
+    tmpd['original_mp4_directory'] = video_directory
+    tmpd['mp4_names'] = os_sorted(glob.glob(video_directory + '/*.mp4'))
+    tmpd['is_processed'] = np.full(np.shape(tmpd['mp4_names']), False)
+    tmpd['NOTES'] = """you can put any notes here directly from the text file if you want to"""
+    save_obj(tmpd, video_directory + os.sep + 'file_list_for_batch_processing')
+
+
+def _check_pkl(name):
+    if name[-4:] != '.pkl':
+        return name + '.pkl'
+    return name
+
+
+def save_obj(obj, name):
+    with open(_check_pkl(name), 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def load_obj(name):
+    with open(_check_pkl(name), 'rb') as f:
+        return pickle.load(f)
+
 
 def get_whacc_path():
     path = os.path.dirname(whacc.__file__)
     return path
-# def get_model_path():
-#     path = os.path.dirname(whacc.__file__) + '/whacc_data/final_CNN_model_weights/0006_cp_final_resnetV2_weights.hdf5'
-#     return path
-
-from IPython.utils import io
-import pdb
 
 
-# def tqdm_import_helper():
-#     # with io.capture_output() as captured:  # prevent crazy printing
-#     # pdb.set_trace()
-#     from tqdm.notebook import tqdm
-#     try:
-#         for k in tqdm(range(1)):
-#             pass
-#         return True and isnotebook()
-#     except:
-#         return False
+def load_feature_data():
+    x = get_whacc_path() + "/whacc_data/feature_data/"
+    d = load_obj(x + 'feature_data_dict.pkl')
+    x = d['features_used_of_10'][:]
+    d['features_used_of_10_bool'] = [True if k in x else False for k in range(2048 * 41 + 41)]
+    return d
+
+
+# def load_top_feature_selection_out_of_ten():
+#     fn = get_whacc_path() + "/whacc_data/features_used_in_light_GBM_mods_out_of_10.npy"
+#     return np.load(fn)
+
+def get_selected_features(greater_than_or_equal_to=4):
+    '''
+    Parameters
+    ----------
+    greater_than_or_equal_to : 0 means select all features, 10 means only the features that were use in EVERY test
+    light GBM model. Note: the save Light GBM (model) is trained on greater_than_or_equal_to = 4, so you can change this
+    but you will need to retrain the light GBM (model).
+    Returns keep_features_index : index to the giant '84,009' features, note greater_than_or_equal_to = 4 return 3095
+    features
+    -------
+    '''
+
+    fd = load_feature_data()
+    features_out_of_10 = fd['features_used_of_10']
+    keep_features_index = np.where(features_out_of_10 >= greater_than_or_equal_to)[0]
+    return keep_features_index
 
 
 def isnotebook():
@@ -563,9 +741,8 @@ list(set(file_list))
     base_dir :
         
     search_term :
-        
 
-    Returnslister_it
+    Returns
     -------
 
     """
@@ -921,7 +1098,7 @@ def stack_lag_h5_maker(f, f2, buffer=2, shift_to_the_right_by=0):
         for ii, (k1, k2) in enumerate(tqdm(loop_segments(x), total=len(x))):
             x2 = h['images'][k1:k2]
             if len(x2.shape) == 4:
-                x2 = x2[:, :, :, 0] # only want one 'color' channel
+                x2 = x2[:, :, :, 0]  # only want one 'color' channel
             new_imgs = image_tools.stack_imgs_lag(x2, buffer=2, shift_to_the_right_by=0)
             h5c.add_to_h5(new_imgs, np.ones(new_imgs.shape[0]) * -1)
 
@@ -1474,11 +1651,8 @@ def intersect_all(arr1, arr2):
 
 
 def space_check(path, min_gb=2):
-    assert shutil.disk_usage(path).free / 10 ** 9 > min_gb, """space_check function: GB limit reached, ending function"""
-
-
-
-
+    assert shutil.disk_usage(
+        path).free / 10 ** 9 > min_gb, """space_check function: GB limit reached, ending function"""
 
 # "/whacc_data/final_CNN_model_weights/*.hdf5"
 #
