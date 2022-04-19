@@ -1,6 +1,6 @@
-from whacc import PoleTracking, model_maker
 from whacc.feature_maker import convert_h5_to_feature_h5, standard_feature_generation, load_selected_features
-
+from whacc.pole_tracker import PoleTracking
+from whacc import model_maker
 import shutil
 
 import numpy as np
@@ -24,15 +24,27 @@ from scipy.signal import medfilt, medfilt2d
 import pickle
 from tqdm.autonotebook import tqdm
 
+from datetime import timedelta, datetime
+import pytz
 
-def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
+def get_time_string(time_zone_string = 'America/Los_Angeles'):
+    tz = pytz.timezone(time_zone_string)
+    loc_dt = pytz.utc.localize(datetime.utcnow())
+    current_time = loc_dt.astimezone(tz)
+    todays_version = current_time.strftime("%Y_%m_%d_%H_%M_%S")
+    return todays_version
+
+
+def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
+    time_str = get_time_string()
     bd_base_name = os.path.basename(os.path.normpath(bd))
     # load model once in the beginning
     RESNET_MODEL = model_maker.load_final_model()  # NOTE: there will be a warning since this likely isn't optimized for GPU, this is fine
-    fd = load_feature_data()  # load feature data info
-    while True:  # once a   ll files are
-        time_list = []
-        start = time.time()
+    time_dict = {'num_files': [], 'time_copy_to_local': [], 'time_all': [], 'time_to_track': [], 'time_to_3lag': [],
+                 'time_to_features': [], 'time_to_all_features': [], 'time_to_cut_features': []}
+    time_df = None
+    while True:  # keep going until there are no more files to process
+
         grab_file_list = True
         while grab_file_list:  # continuously look for files to run
             # get files that tell us which mp4s to process
@@ -43,7 +55,8 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
             list_of_file_dicts = list_of_file_dicts[inds]
             if len(list_of_file_dicts) == 0:
                 print('FINISHED PROCESSING')
-                assert False, "FINISHED PROCESSING no more files to process"
+                return time_df
+                # assert False, "FINISHED PROCESSING no more files to process"
             # load file dictionary
             file_dict = load_obj(list_of_file_dicts[0])
             # get base directory for current videos we are processing
@@ -52,14 +65,14 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
             copy_folder_structure(bd, os.path.normpath(bd) + '_FINISHED')
             # check if all the files have already been processes
             if np.all(file_dict['is_processed'] == True):
-                x = list_of_file_dicts[
-                    0]  # copy the instruction file with list of mp4s to final directory we are finished
+                x = list_of_file_dicts[0]  # copy instruction file with list of mp4s to final directory we are finished
                 shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
                 x = os.path.dirname(x) + os.sep + 'template_img.png'
                 shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
             else:
                 grab_file_list = False  # ready to run data
-
+        start = time.time()
+        time_list = [start]
         # overwrite local folder to copy files to
         if os.path.exists(local_temp_dir):
             shutil.rmtree(local_temp_dir)
@@ -72,28 +85,32 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
         for i in process_these_videos:
             x = os.sep + os.path.basename(file_dict['mp4_names'][i])
             shutil.copy(mp4_bd + x, local_temp_dir + x)
+        time_list.append(time.time())  #
 
         # track the mp4s for the pole images
         PT = PoleTracking(video_directory=local_temp_dir, template_png_full_name=template_dir)
         PT.track_all_and_save()
-
+        time_list.append(time.time())
         # convert the images to '3lag' images
         #  h5_in = '/Users/phil/Desktop/temp_dir/AH0407x160609.h5'
         h5_in = PT.full_h5_name
         h5_3lag = h5_in.replace('.h5', '_3lag.h5')
         image_tools.convert_to_3lag(h5_in, h5_3lag)
+        time_list.append(time.time())
 
         # convert to feature data
         # h5_3lag = '/Users/phil/Desktop/temp_dir/AH0407x160609_3lag.h5'
         h5_feature_data = h5_3lag.replace('.h5', '_feature_data.h5')
         in_gen = image_tools.ImageBatchGenerator(500, h5_3lag, label_key='labels')
         convert_h5_to_feature_h5(RESNET_MODEL, in_gen, h5_feature_data)
+        time_list.append(time.time())
 
         # delete 3lag don't it need anymore
         os.remove(h5_3lag)
         # h5_feature_data = '/Users/phil/Desktop/temp_dir/AH0407x160609_3lag_feature_data.h5'
         # generate all the modified features (41*2048)+41 = 84,009
         standard_feature_generation(h5_feature_data)
+        time_list.append(time.time())
         all_x = load_selected_features(h5_feature_data)
         # delete the big o' file
         file_nums = str(process_these_videos[0] + 1) + '_to_' + str(process_these_videos[-1] + 1) + '_of_' + str(
@@ -104,6 +121,7 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
             h['final_3095_features'] = all_x
         copy_over_all_non_image_keys(h5_in, h5_final)
         # then if you want you can copy the images too maybe just save as some sort of mp4 IDK
+        time_list.append(time.time())
         os.remove(h5_feature_data)
         x = os.path.dirname(list_of_file_dicts[0]) + os.sep
         dst = x.replace(bd_base_name, bd_base_name + '_FINISHED') + os.path.basename(h5_final)
@@ -117,7 +135,128 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
         for i in process_these_videos:
             x = mp4_bd + os.sep + os.path.basename(file_dict['mp4_names'][i])
             shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
-        time_list.append(time.time() - start)
+        time_list.append(time.time())
+
+        time_array = np.diff(time_list)
+        df_name_list = ['copy mp4s to local', 'track the pole', 'convert to 3lag', 'create feature data (CNN)',
+                        'engineer all features', 'make final h5 3095', 'copy  h5 and mp4s to final destination',
+                        'number of files']
+
+        len_space = ' ' * max(len(k) + 4 for k in df_name_list)
+        print('operation                                 total     per file')
+        to_print = ''.join([(k2 + len_space)[:len(len_space)] + str(timedelta(seconds=k)).split(".")[
+            0] + '   ' + str(timedelta(seconds=k3)).split(".")[0] + '\n' for k, k2, k3 in
+                            zip(time_array, df_name_list, time_array / len(process_these_videos))])
+        print(to_print)
+        print('TOTAL                                     total     per file')
+        print(len_space + str(timedelta(seconds=int(np.sum(time_array)))).split(".")[0] + '   ' +
+              str(timedelta(seconds=np.sum(time_array) / len(process_these_videos))).split(".")[0])
+
+        time_array = np.concatenate((time_array, [len(process_these_videos)]))
+        if time_df is None:
+            time_df = pd.DataFrame(time_array[None, :], columns=df_name_list)
+        else:
+            tmp_df = pd.DataFrame(time_array[None, :], columns=df_name_list)
+            time_df = time_df.append(tmp_df, ignore_index=True)
+        save_obj(time_df, os.path.normpath(bd) + '_FINISHED' + os.sep + 'time_df_'+time_str+'.pkl')
+
+
+
+
+
+# def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
+#     bd_base_name = os.path.basename(os.path.normpath(bd))
+#     # load model once in the beginning
+#     RESNET_MODEL = model_maker.load_final_model()  # NOTE: there will be a warning since this likely isn't optimized for GPU, this is fine
+#     fd = load_feature_data()  # load feature data info
+#     while True:  # once a   ll files are
+#         time_list = []
+#         start = time.time()
+#         grab_file_list = True
+#         while grab_file_list:  # continuously look for files to run
+#             # get files that tell us which mp4s to process
+#             list_of_file_dicts = np.asarray(get_files(bd, '*file_list_for_batch_processing.pkl'))
+#             # sort it by the newest first since we we edit it each time (becoming the newest file)
+#             # this ensures we finished one set completely first
+#             inds = np.flip(np.argsort([os.path.getctime(k) for k in list_of_file_dicts]))
+#             list_of_file_dicts = list_of_file_dicts[inds]
+#             if len(list_of_file_dicts) == 0:
+#                 print('FINISHED PROCESSING')
+#                 assert False, "FINISHED PROCESSING no more files to process"
+#             # load file dictionary
+#             file_dict = load_obj(list_of_file_dicts[0])
+#             # get base directory for current videos we are processing
+#             mp4_bd = os.path.dirname(list_of_file_dicts[0])
+#             # copy folder structure for the finished mp4s and predictions to go to
+#             copy_folder_structure(bd, os.path.normpath(bd) + '_FINISHED')
+#             # check if all the files have already been processes
+#             if np.all(file_dict['is_processed'] == True):
+#                 x = list_of_file_dicts[
+#                     0]  # copy the instruction file with list of mp4s to final directory we are finished
+#                 shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
+#                 x = os.path.dirname(x) + os.sep + 'template_img.png'
+#                 shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
+#             else:
+#                 grab_file_list = False  # ready to run data
+#
+#         # overwrite local folder to copy files to
+#         if os.path.exists(local_temp_dir):
+#             shutil.rmtree(local_temp_dir)
+#         Path(local_temp_dir).mkdir(parents=True, exist_ok=True)
+#         # copy over mp4s and template image to local directory
+#         x = os.sep + 'template_img.png'
+#         template_dir = local_temp_dir + x
+#         shutil.copy(mp4_bd + x, template_dir)
+#         process_these_videos = np.where(file_dict['is_processed'] == False)[0][:video_batch_size]
+#         for i in process_these_videos:
+#             x = os.sep + os.path.basename(file_dict['mp4_names'][i])
+#             shutil.copy(mp4_bd + x, local_temp_dir + x)
+#
+#         # track the mp4s for the pole images
+#         PT = PoleTracking(video_directory=local_temp_dir, template_png_full_name=template_dir)
+#         PT.track_all_and_save()
+#
+#         # convert the images to '3lag' images
+#         #  h5_in = '/Users/phil/Desktop/temp_dir/AH0407x160609.h5'
+#         h5_in = PT.full_h5_name
+#         h5_3lag = h5_in.replace('.h5', '_3lag.h5')
+#         image_tools.convert_to_3lag(h5_in, h5_3lag)
+#
+#         # convert to feature data
+#         # h5_3lag = '/Users/phil/Desktop/temp_dir/AH0407x160609_3lag.h5'
+#         h5_feature_data = h5_3lag.replace('.h5', '_feature_data.h5')
+#         in_gen = image_tools.ImageBatchGenerator(500, h5_3lag, label_key='labels')
+#         convert_h5_to_feature_h5(RESNET_MODEL, in_gen, h5_feature_data)
+#
+#         # delete 3lag don't it need anymore
+#         os.remove(h5_3lag)
+#         # h5_feature_data = '/Users/phil/Desktop/temp_dir/AH0407x160609_3lag_feature_data.h5'
+#         # generate all the modified features (41*2048)+41 = 84,009
+#         standard_feature_generation(h5_feature_data)
+#         all_x = load_selected_features(h5_feature_data)
+#         # delete the big o' file
+#         file_nums = str(process_these_videos[0] + 1) + '_to_' + str(process_these_videos[-1] + 1) + '_of_' + str(
+#             len(file_dict['is_processed']))
+#         h5_final = h5_in.replace('.h5', '_final_to_combine_' + file_nums + '.h5')
+#         print(h5_final)
+#         with h5py.File(h5_final, 'w') as h:
+#             h['final_3095_features'] = all_x
+#         copy_over_all_non_image_keys(h5_in, h5_final)
+#         # then if you want you can copy the images too maybe just save as some sort of mp4 IDK
+#         os.remove(h5_feature_data)
+#         x = os.path.dirname(list_of_file_dicts[0]) + os.sep
+#         dst = x.replace(bd_base_name, bd_base_name + '_FINISHED') + os.path.basename(h5_final)
+#         shutil.copy(h5_final, dst)
+#
+#         for k in process_these_videos:  # save the dict file so that we know the video has been processed
+#             file_dict['is_processed'][k] = True
+#         save_obj(file_dict, list_of_file_dicts[0])
+#
+#         # move the mp4s to the final dir
+#         for i in process_these_videos:
+#             x = mp4_bd + os.sep + os.path.basename(file_dict['mp4_names'][i])
+#             shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
+#         time_list.append(time.time() - start)
 
 
 def auto_combine_final_h5s(bd, delete_extra_files=True):
@@ -162,13 +301,18 @@ def combine_final_h5s(h5_file_list_to_combine, delete_extra_files=False):
             os.remove(k)
 
 
-def make_mp4_list_dict(video_directory):
+def make_mp4_list_dict(video_directory, overwrite=False):
+    fn = video_directory + os.sep + 'file_list_for_batch_processing.pkl'
+    if os.path.isfile(fn):
+        assert overwrite, "warning file already exists! if you overwrite a partially processed directory, you will " \
+                          "experience issues like overwrite errors, and you'll lose your progress if you are sure you want to overwrite " \
+                          "make sure to delete the corresponding '_FINISHED' directory  and set overwrite = True"
     tmpd = dict()
     tmpd['original_mp4_directory'] = video_directory
     tmpd['mp4_names'] = os_sorted(glob.glob(video_directory + '/*.mp4'))
     tmpd['is_processed'] = np.full(np.shape(tmpd['mp4_names']), False)
     tmpd['NOTES'] = """you can put any notes here directly from the text file if you want to"""
-    save_obj(tmpd, video_directory + os.sep + 'file_list_for_batch_processing')
+    save_obj(tmpd, fn)
 
 
 def _check_pkl(name):
@@ -179,7 +323,8 @@ def _check_pkl(name):
 
 def save_obj(obj, name):
     with open(_check_pkl(name), 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        # pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(obj, f, protocol=4)
 
 
 def load_obj(name):
