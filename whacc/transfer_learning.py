@@ -13,14 +13,6 @@ allow for plotting different plot using subplot I guess is the easiest way
 """
 from whacc import utils
 
- # setting up plotting when usinsave_and_plot_historyg google colab or notebook (though only tested in colab)
-if utils.isnotebook():
-
-    from IPython import get_ipython
-    ipython = get_ipython()
-    ipython.magic("matplotlib inline")
-from IPython import display
-
 import copy
 from whacc import image_tools
 import tensorflow as tf
@@ -32,6 +24,29 @@ import time
 import os
 import matplotlib.pyplot as plt
 import json
+
+def isnotebook():
+    try:
+        c = str(get_ipython().__class__)
+        shell = get_ipython().__class__.__name__
+        if 'colab' in c:
+            return True
+        elif shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+ # setting up plotting when usinsave_and_plot_historyg google colab or notebook (though only tested in colab)
+if isnotebook():
+
+    from IPython import get_ipython
+    ipython = get_ipython()
+    ipython.magic("matplotlib inline")
+from IPython import display
 
 
 def foo_make_model(model_2_load, dropout=None):
