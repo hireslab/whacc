@@ -20,6 +20,8 @@ from functools import partial
 from tqdm import tqdm
 from PIL import Image
 from whacc.image_tools import h5_iterative_creator
+from whacc import utils
+import warnings
 
 
 # import pdb
@@ -82,6 +84,8 @@ class PoleTracking():
         self.video_files = os_sorted(glob.glob(os.path.join(video_directory, '*.mp4')))
         self.base_names = [os.path.basename(n).split('.')[0] for n in self.video_files]
         self.use_narrow_search_to_speed_up = use_narrow_search_to_speed_up
+        self.frame_num_to_cut = 2000
+        self.custom_init_pole_template_dir = None
         if template_png_full_name is not None:
             self.load_template_img(template_png_full_name)
 
@@ -441,6 +445,23 @@ class PoleTracking():
         """
         self.template_image = np.asarray(Image.open(img_to_load))
 
+    def init_pole_best_match(self, video_file):
+            if self.custom_init_pole_template_dir is not None:
+                assert isinstance(self.custom_init_pole_template_dir, str), "custom_init_pole_template_dir must be a string!!!"
+                template_img = self.custom_init_pole_template_dir
+            else:
+                template_img = utils.get_whacc_path() + '/whacc_data/template_img.png'
+            self.load_template_img(template_img)
+            video = cv2.VideoCapture(video_file)
+            video.set(1, self.frame_num_to_cut)
+            _, frame = video.read()
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype('uint8').copy()
+            res = cv2.matchTemplate(img, self.template_image, cv2.TM_CCOEFF)
+            min_val, max_val, min_loc, top_left = cv2.minMaxLoc(res)
+            top_left = np.flip(np.asarray(top_left))
+
+            return top_left
+
     def cut_out_pole_template(self, crop_size=[61, 61], frame_num=2000, file_ind=None):
         """
 
@@ -460,7 +481,12 @@ class PoleTracking():
         -------
 
         """
-        top_left = str(crop_size[0]) + ' , ' + str(crop_size[1])
+        # top_left = str(crop_size[0]) + ' , ' + str(crop_size[1])
+        self.frame_num_to_cut = frame_num
+        top_left = None
+        tmptop_left =[0, 0]
+
+
         crop_size = np.asarray(crop_size)
         if file_ind is None:
             video_file = np.random.choice(self.video_files, 1)[0]
@@ -470,11 +496,20 @@ class PoleTracking():
         plt.show()
         change_trig = True
         while 'exit' not in str(top_left).lower():
+            was_skipped = 0
             if 'skip' in str(top_left).lower():
                 video_file = np.random.choice(self.video_files, 1)[0]
                 print('Randomly selecting a new video...')
+                was_skipped = 1
             try:
-                top_left = eval('[' + top_left + ']')
+                if top_left is None or was_skipped:
+                    top_left = self.init_pole_best_match(video_file)
+                    # top_left = list(np.asarray(top_left)+np.asarray([4, 3])) # hack off by some for 61x61 don't know why
+                    tmptop_left = top_left.copy()
+                    change_trig = False
+                else:
+                    top_left = eval('[' + top_left + ']')
+
                 if change_trig:
                     top_left = top_left - np.floor(crop_size / 2).astype('int')
                 else:
@@ -503,10 +538,11 @@ class PoleTracking():
                 plt.grid(which='minor', color='red', linestyle='-', linewidth=.2)
                 frame2 = frame.copy()
                 try:
-                    frame2[a[0], :] = 0
-                    frame2[b[0], :] = 0
-                    frame2[:, a[1]] = 0
-                    frame2[:, b[1]] = 0
+                    c = [0, 255, 0]
+                    frame2[a[0], :] = c
+                    frame2[b[0], :] = c
+                    frame2[:, a[1]] = c
+                    frame2[:, b[1]] = c
                 except:
                     print('partially out of range not plotting crosshairs on zoomed out image')
                 _ = plt.subplot(121)
@@ -530,7 +566,15 @@ class PoleTracking():
                 plt.close(tmp_fig)
                 if 'exit all' == str(top_left).lower():
                     assert False, 'user exited the program'
-            except:
+            except OSError as err:
+                # _ = [warnings.warn("OS error: {0}".format(err)+'\n') for iii in range(20)]
+                warnings.warn("OS error: {0}".format(err));print('\n\n')
+                warnings.warn("OS error: {0}".format(err));print('\n\n')
+                warnings.warn("OS error: {0}".format(err));print('\n\n')
+                warnings.warn("OS error: {0}".format(err));print('\n\n')
+                warnings.warn("OS error: {0}".format(err));print('\n\n')
+                warnings.warn("OS error: {0}".format(err));print('\n\n')
+
                 if 'exit all' == str(top_left).lower():
                     assert False, 'user exited the program'
                 if str(top_left).lower() != 'skip':

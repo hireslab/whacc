@@ -256,3 +256,20 @@ def copy_file_filter(src, dst, keep_strings='', remove_string=None, overwrite=Fa
 
 copy_file_filter('/Users/phil/Desktop/FAKE_full_data', '/Users/phil/Desktop/aaaaaaaaaa', keep_strings='/3lag/',
                  remove_string=None, overwrite=True, just_print_what_will_be_copied=False)
+
+
+from whacc import utils
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.image as mpimg
+all_template_images = utils.get_files('/Users/phil/Desktop/trashTMP/', '*.png')
+
+for i, k in enumerate(all_template_images):
+    img = mpimg.imread(k)
+    if i%3**2 == 0:
+        fig, axs = plt.subplots(3, 3, figsize=[10, 10])
+        axs = axs.flatten()
+    axs[i%3**2].imshow(img)
+
+
+np.arange(20)**2
