@@ -26,6 +26,7 @@ from tqdm.autonotebook import tqdm
 
 from datetime import timedelta, datetime
 import pytz
+import warnings
 
 def get_time_string(time_zone_string = 'America/Los_Angeles'):
     tz = pytz.timezone(time_zone_string)
@@ -64,7 +65,7 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
             # copy folder structure for the finished mp4s and predictions to go to
             copy_folder_structure(bd, os.path.normpath(bd) + '_FINISHED')
             # check if all the files have already been processes
-            if np.all(file_dict['is_processed'] == True):
+            if np.all(file_dict['is_processed']==True):
                 x = list_of_file_dicts[0]  # copy instruction file with list of mp4s to final directory we are finished
                 shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
                 x = os.path.dirname(x) + os.sep + 'template_img.png'
@@ -131,10 +132,12 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
             file_dict['is_processed'][k] = True
         save_obj(file_dict, list_of_file_dicts[0])
 
-        # move the mp4s to the final dir
+        # move the mp4s to the alt final dir
         for i in process_these_videos:
             x = mp4_bd + os.sep + os.path.basename(file_dict['mp4_names'][i])
-            shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
+            final_mp4_dir = x.replace(bd_base_name, bd_base_name + '_FINISHED_MP4s')
+            Path(os.path.dirname(final_mp4_dir)).mkdir(parents=True, exist_ok=True)
+            shutil.move(x, final_mp4_dir)
         time_list.append(time.time())
 
         time_array = np.diff(time_list)
@@ -301,9 +304,16 @@ def combine_final_h5s(h5_file_list_to_combine, delete_extra_files=False):
 def make_mp4_list_dict(video_directory, overwrite=False):
     fn = video_directory + os.sep + 'file_list_for_batch_processing.pkl'
     if os.path.isfile(fn):
-        assert overwrite, "warning file already exists! if you overwrite a partially processed directory, you will " \
-                          "experience issues like overwrite errors, and you'll lose your progress if you are sure you want to overwrite " \
-                          "make sure to delete the corresponding '_FINISHED' directory  and set overwrite = True"
+        warnings.warn("warning file already exists! if you overwrite a partially processed directory, you will " \
+                          "experience issues like overwrite errors, and you'll lose your progress. if you are sure you want to overwrite " \
+                          "make sure to delete the corresponding '_FINISHED' directory, and if necessary move the mp4s back "\
+                          "to the processing folder and set overwrite = True")
+        warnings.warn("this above message is in reference to the following directory...\n"+video_directory)
+        print(video_directory)
+
+        # assert overwrite, "warning file already exists! if you overwrite a partially processed directory, you will " \
+        #                   "experience issues like overwrite errors, and you'll lose your progress if you are sure you want to overwrite " \
+        #                   "make sure to delete the corresponding '_FINISHED' directory  and set overwrite = True"
     tmpd = dict()
     tmpd['original_mp4_directory'] = video_directory
     tmpd['mp4_names'] = os_sorted(glob.glob(video_directory + '/*.mp4'))

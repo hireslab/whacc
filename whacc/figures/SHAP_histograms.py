@@ -174,6 +174,7 @@ for k in tmp1:
 
 
 
+h5_in = '/Users/phil/Desktop/LIGHT_GBM/reg_80_border_and_andrew_both_samson_both__test_num_0_percent_15.h5'
 
 
 
@@ -181,9 +182,11 @@ for k in tmp1:
 
 
 
+"""
+i os_sorted here and also on windows i have to make sure that it is the same, first just check the simple
+"""
 
-
-feature_list = os_sorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__'))
+feature_list = os_sorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__')) # I do use os sorted here
 final_feature_names, feature_names, feature_nums, feature_list_short = get_feature_data_names(feature_list)
 # directories with data and models
 bd = '/Volumes/rig1 EPHUS pc backup /LIGHT_GBM/FEATURE_DATA'
@@ -210,6 +213,8 @@ for mod_fn in tqdm(all_models):
         shap_len_samples_list.append(shap_values_1.shape[0])
 
 df = pd.DataFrame(zip(shap_contribution_list, shap_len_samples_list, fn_list, mod_list), columns= ['shap', 'len_x', 'file name', 'mod name'])
+df['']
+utils.save_obj(df, '/Users/phil/Desktop/all_model_shap_dataframe')
 tmp1 = df.groupby(['mod name'])
 tmp1['shap'].mean()
 

@@ -29,6 +29,7 @@ setup.py
 ./whacc/__pycache__/touch_curation_GUI.cpython-38.pyc
 ./whacc/__pycache__/transfer_learning.cpython-38.pyc
 ./whacc/__pycache__/utils.cpython-38.pyc
+./whacc/examples/0.5 before batch processing.py
 ./whacc/examples/1_make_h5_example.py
 ./whacc/examples/2_predict_touches_example.py
 ./whacc/examples/3_make_subset_H5_example.py
@@ -74,9 +75,10 @@ setup.py
 ./whacc/examples/track_moving_test.py
 ./whacc/examples/var_rename_scratch.py
 ./whacc/figures/CNN_plots.py
+./whacc/figures/FIG_2_border_touches_explained.py
+./whacc/figures/FIG_2_pie_graph_percentages.py
 ./whacc/figures/SHAP_histograms.py
 ./whacc/figures/__init__.py
-./whacc/figures/border_touches_explained.py
 ./whacc/figures/error_analysis_explained_critical_errors.py
 ./whacc/figures/error_type_analysis.py
 ./whacc/figures/features_with_video.py
@@ -87,6 +89,7 @@ setup.py
 ./whacc/figures/not_using/__init__.py
 ./whacc/figures/not_using/simulation_simple.py
 ./whacc/whacc_data/.DS_Store
+./whacc/whacc_data/template_img.png
 ./whacc/whacc_data/feature_data/feature_data_dict.pkl
 ./whacc/whacc_data/feature_data/feature_list_short_type.npy
 ./whacc/whacc_data/feature_data/features_used_in_light_GBM_mods_out_of_10.npy
@@ -115,6 +118,7 @@ whacc.egg-info/dependency_links.txt
 whacc.egg-info/not-zip-safe
 whacc.egg-info/requires.txt
 whacc.egg-info/top_level.txt
+whacc/examples/0.5 before batch processing.py
 whacc/examples/1_make_h5_example.py
 whacc/examples/2_predict_touches_example.py
 whacc/examples/3_make_subset_H5_example.py
@@ -160,9 +164,10 @@ whacc/examples/testing_batch_predicting.py
 whacc/examples/track_moving_test.py
 whacc/examples/var_rename_scratch.py
 whacc/figures/CNN_plots.py
+whacc/figures/FIG_2_border_touches_explained.py
+whacc/figures/FIG_2_pie_graph_percentages.py
 whacc/figures/SHAP_histograms.py
 whacc/figures/__init__.py
-whacc/figures/border_touches_explained.py
 whacc/figures/error_analysis_explained_critical_errors.py
 whacc/figures/error_type_analysis.py
 whacc/figures/features_with_video.py
