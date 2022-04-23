@@ -2725,7 +2725,7 @@ keep_features_index = np.where(features_out_of_10 >= 4)[0]
 
 
 
-os_sorted(feature_list)
+
 from natsort import natsorted
 
 natsorted(feature_list)

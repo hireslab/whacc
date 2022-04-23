@@ -8,7 +8,7 @@ from pathlib import Path
 import os
 import sys
 import glob
-from natsort import os_sorted
+from natsort import natsorted
 import scipy.io as spio
 import h5py
 import matplotlib.pyplot as plt
@@ -275,7 +275,7 @@ def auto_combine_final_h5s(bd, delete_extra_files=True):
     for f in finished_sessions:
         file_dict = load_obj(f)
         if np.all(file_dict['is_processed'] == True):
-            h5_file_list_to_combine = os_sorted(get_files(os.path.dirname(f), '*_final_to_combine_*'))
+            h5_file_list_to_combine = natsorted(get_files(os.path.dirname(f), '*_final_to_combine_*'))
             if len(h5_file_list_to_combine) > 0:
                 combine_final_h5s(h5_file_list_to_combine, delete_extra_files=delete_extra_files)
 
@@ -316,7 +316,7 @@ def make_mp4_list_dict(video_directory, overwrite=False):
         #                   "make sure to delete the corresponding '_FINISHED' directory  and set overwrite = True"
     tmpd = dict()
     tmpd['original_mp4_directory'] = video_directory
-    tmpd['mp4_names'] = os_sorted(glob.glob(video_directory + '/*.mp4'))
+    tmpd['mp4_names'] = natsorted(glob.glob(video_directory + '/*.mp4'))
     tmpd['is_processed'] = np.full(np.shape(tmpd['mp4_names']), False)
     tmpd['NOTES'] = """you can put any notes here directly from the text file if you want to"""
     save_obj(tmpd, fn)
@@ -849,7 +849,7 @@ def recursive_dir_finder(base_path, search_term):
         if glob.glob(root + '/' + search_term):
             matching_folders.append(root)
     try:
-        matching_folders = os_sorted(matching_folders)
+        matching_folders = natsorted(matching_folders)
     except:
         matching_folders = sorted(matching_folders)
     return matching_folders

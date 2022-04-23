@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from whacc import utils
 import numpy as np
 from whacc import image_tools
-from natsort import os_sorted
+from natsort import natsorted
 import pickle
 import pandas as pd
 import os
@@ -93,7 +93,7 @@ with open(mod_fn, 'rb') as f:
 
 explainer = shap.TreeExplainer(model)
 
-feature_list = os_sorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__'))
+feature_list = natsorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__'))
 final_feature_names, feature_names, feature_nums, feature_list_short = get_feature_data_names(feature_list)
 x_train, y_train = load_data(h5_in, feature_list, split_int_n_chunks=1, split_chunk_ind=0)
 
@@ -181,12 +181,7 @@ h5_in = '/Users/phil/Desktop/LIGHT_GBM/reg_80_border_and_andrew_both_samson_both
 
 
 
-
-"""
-i os_sorted here and also on windows i have to make sure that it is the same, first just check the simple
-"""
-
-feature_list = os_sorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__')) # I do use os sorted here
+feature_list = natsorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__')) # I do use os sorted here
 final_feature_names, feature_names, feature_nums, feature_list_short = get_feature_data_names(feature_list)
 # directories with data and models
 bd = '/Volumes/rig1 EPHUS pc backup /LIGHT_GBM/FEATURE_DATA'

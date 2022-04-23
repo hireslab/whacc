@@ -11,7 +11,7 @@ import pandas as pd
 import datetime
 
 
-# from natsort import os_sorted
+# from natsort import natsorted
 
 
 def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
@@ -225,7 +225,7 @@ d = utils.load_obj(tmp1)
 # import time
 # import shutil
 # from pathlib import Path
-# from natsort import os_sorted
+# from natsort import natsorted
 #
 # ################
 # ################ USER SETTINGS BELOW

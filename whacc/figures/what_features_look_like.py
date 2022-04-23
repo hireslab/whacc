@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from whacc import utils
 import numpy as np
 from whacc import image_tools
-from natsort import os_sorted
+from natsort import natsorted
 import pickle
 import pandas as pd
 import os
@@ -150,7 +150,7 @@ with open(mod_fn, 'rb') as f:
 
 explainer = shap.TreeExplainer(model)
 
-feature_list = os_sorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__'))
+feature_list = natsorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__'))
 final_feature_names, feature_names, feature_nums, feature_list_short = get_feature_data_names(feature_list)
 x_train, y_train = load_data(h5_in, feature_list, split_int_n_chunks=1, split_chunk_ind=0)
 
@@ -341,9 +341,9 @@ foo_neuron_heatmap(fd, inds, labels)
 fd = d['FD__FD__original_diff_periods_-2____']
 foo_neuron_heatmap(fd, inds, labels)
 
-from natsort import os_sorted
+from natsort import natsorted
 keys = utils.print_h5_keys(h5_feature_data, 1, 0)
-keys = os_sorted(utils.lister_it(keys, 'FD__', 'TOTAL'))
+keys = natsorted(utils.lister_it(keys, 'FD__', 'TOTAL'))
 cut_list = []
 for k in keys:
     fd = d[k]
@@ -378,7 +378,7 @@ keys[30:40] # shift
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 keys = utils.print_h5_keys(h5_feature_data, 1, 0)
-keys = os_sorted(utils.lister_it(keys, 'TOTAL'))
+keys = natsorted(utils.lister_it(keys, 'TOTAL'))
 total_type_features = []
 for k in keys:
     fd = d[k]
@@ -563,7 +563,7 @@ plt.sca(ax[0])
 # #
 # #
 # #
-# # feature_list = os_sorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__'))
+# # feature_list = natsorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__'))
 # # final_feature_names, feature_names, feature_nums, feature_list_short = get_feature_data_names(feature_list)
 # # all_x, all_y = load_data(feature_h5[0], feature_list, inds[0], inds[1], label_key='labels')
 # #
