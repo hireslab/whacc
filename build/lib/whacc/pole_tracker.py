@@ -57,7 +57,7 @@ def isnotebook():
 import natsort
 # !pip install natsort==7.1.1 # this version has "os_sorted"
 # !pip install pyicu # needed to make sure the sorting is correct (strong recommend in the documentation)
-from natsort import os_sorted
+from natsort import natsorted
 
 """## Build Class for template and frame matching
 
@@ -81,7 +81,7 @@ class PoleTracking():
             frame. based on "inflation" variable in "crop_image_from_top_left" method below
         """
         self.video_directory = video_directory
-        self.video_files = os_sorted(glob.glob(os.path.join(video_directory, '*.mp4')))
+        self.video_files = natsorted(glob.glob(os.path.join(video_directory, '*.mp4')))
         self.base_names = [os.path.basename(n).split('.')[0] for n in self.video_files]
         self.use_narrow_search_to_speed_up = use_narrow_search_to_speed_up
         self.frame_num_to_cut = 2000
