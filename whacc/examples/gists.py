@@ -2,10 +2,10 @@
 from whacc import utils
 import numpy as np
 import h5py
-from natsort import os_sorted
+from natsort import natsorted
 import copy
 
-label_files = os_sorted(utils.get_files("/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/", "*_labels.npy"))
+label_files = natsorted(utils.get_files("/Users/phil/Dropbox/HIRES_LAB/GitHub/Phillip_AC/autoCuratorDiverseDataset/AH0000x000000/", "*_labels.npy"))
 label_files = utils.lister_it(label_files, keep_strings=None, remove_string='curated')
 
 all_labels = []

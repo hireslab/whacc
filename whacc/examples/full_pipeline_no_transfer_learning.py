@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 import numpy as np
 import time
 import glob
-from natsort import os_sorted
+from natsort import natsorted
 from whacc.touch_curation_GUI import touch_gui
 
 """
