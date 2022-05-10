@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='whacc',
-      version='1.0.03',
+      version='1.1.10',
       author="Phillip Maire",
       license='MIT',
       description='Automatic and customizable pipeline for creating a CNN + light GBM model to predict whiskers contacting objects',
@@ -25,7 +25,10 @@ setup(name='whacc',
                               'whacc_data/final_model/final_resnet50V2_full_model/variables/*',
                               'whacc_data/final_model/final_resnet50V2_full_model/assets/*',
                               'whacc_data/final_model/final_resnet50V2_full_model/*',
-                              'whacc_data/final_model/*']},
+                              'whacc_data/final_model/*',
+                              'whacc/whacc_data/final_model/final_resnet50V2_full_model/*pb',
+                              'whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/*.index',
+                              'whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/*.data-00000-of-00001']},
       include_package_data=True
       )
 
