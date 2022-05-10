@@ -1,4 +1,4 @@
-from whacc.feature_maker import convert_h5_to_feature_h5, standard_feature_generation, load_selected_features
+from whacc.feature_maker import convert_h5_to_feature_h5, standard_feature_generation2  # , load_selected_features
 from whacc.pole_tracker import PoleTracking
 from whacc import model_maker
 import shutil
@@ -28,7 +28,33 @@ from datetime import timedelta, datetime
 import pytz
 import warnings
 
-def get_time_string(time_zone_string = 'America/Los_Angeles'):
+
+def info(x):
+    if isinstance(x, dict):
+        print('type is dict')
+        get_dict_info(x)
+    elif isinstance(x, list):
+        try:
+            x = copy.deepcopy(np.asarray(x))
+            print('type is list, converting a copy to numpy array to print this info')
+            np_stats(x)
+        except:
+            print(
+                "type is a list that can't be converted to a numpy array for printing info or maybe data format is not compatible")
+
+    elif type(x).__module__ == np.__name__:
+        print('type is np array')
+        np_stats(x)
+    else:
+        try:
+            print('type is ' + str(type(x)) + ' will try printing using "get_class_info2" ')
+            get_class_info2(x)
+        except:
+            print('cant find out to do with input of type')
+            print(type(x))
+
+
+def get_time_string(time_zone_string='America/Los_Angeles'):
     tz = pytz.timezone(time_zone_string)
     loc_dt = pytz.utc.localize(datetime.utcnow())
     current_time = loc_dt.astimezone(tz)
@@ -65,7 +91,7 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
             # copy folder structure for the finished mp4s and predictions to go to
             copy_folder_structure(bd, os.path.normpath(bd) + '_FINISHED')
             # check if all the files have already been processes
-            if np.all(file_dict['is_processed']==True):
+            if np.all(file_dict['is_processed'] == True):
                 x = list_of_file_dicts[0]  # copy instruction file with list of mp4s to final directory we are finished
                 shutil.move(x, x.replace(bd_base_name, bd_base_name + '_FINISHED'))
                 x = os.path.dirname(x) + os.sep + 'template_img.png'
@@ -110,20 +136,35 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
         os.remove(h5_3lag)
         # h5_feature_data = '/Users/phil/Desktop/temp_dir/AH0407x160609_3lag_feature_data.h5'
         # generate all the modified features (41*2048)+41 = 84,009
-        standard_feature_generation(h5_feature_data)
-        time_list.append(time.time())
-        all_x = load_selected_features(h5_feature_data)
+
+        # #######BELOW commented out
+        # standard_feature_generation(h5_feature_data)
+        # #######ABOVE commented out
+        ######### standard_feature_generation2(h5_feature_data, write_final_to_h5 = True, delete_temp_h5 = True)
+        ######### time_list.append(time.time())
+
+        # # #######BELOW commented out
+        # all_x = load_selected_features(h5_feature_data)
+        # # #######ABOVE commented out
         # delete the big o' file
         file_nums = str(process_these_videos[0] + 1) + '_to_' + str(process_these_videos[-1] + 1) + '_of_' + str(
             len(file_dict['is_processed']))
         h5_final = h5_in.replace('.h5', '_final_to_combine_' + file_nums + '.h5')
-        print(h5_final)
-        with h5py.File(h5_final, 'w') as h:
-            h['final_3095_features'] = all_x
+
+        standard_feature_generation2(h5_feature_data, write_to_this_h5=h5_final, write_final_to_h5=True,
+                                     delete_temp_h5=True)
+
+        time_list.append(time.time())
+
+        # print(h5_final)
+        # with h5py.File(h5_final, 'w') as h:
+        #     h['final_3095_features'] = all_x
+
         copy_over_all_non_image_keys(h5_in, h5_final)
         # then if you want you can copy the images too maybe just save as some sort of mp4 IDK
-        time_list.append(time.time())
-        os.remove(h5_feature_data)
+        ##### time_list.append(time.time())
+        os.remove(
+            h5_feature_data)  ################################################################################################################removing for now but may want to keep?????
         x = os.path.dirname(list_of_file_dicts[0]) + os.sep
         dst = x.replace(bd_base_name, bd_base_name + '_FINISHED') + os.path.basename(h5_final)
         shutil.copy(h5_final, dst)
@@ -142,7 +183,7 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
 
         time_array = np.diff(time_list)
         df_name_list = ['copy mp4s to local', 'track the pole', 'convert to 3lag', 'create feature data (CNN)',
-                        'engineer all features', 'make final h5 3095', 'copy  h5 and mp4s to final destination',
+                        'engineer all features', 'copy  h5 and mp4s to final destination',
                         'number of files']
 
         len_space = ' ' * max(len(k) + 4 for k in df_name_list)
@@ -161,7 +202,7 @@ def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=2):
         else:
             tmp_df = pd.DataFrame(time_array[None, :], columns=df_name_list)
             time_df = time_df.append(tmp_df, ignore_index=True)
-        save_obj(time_df, os.path.normpath(bd) + '_FINISHED' + os.sep + 'time_df_'+time_str+'.pkl')
+        save_obj(time_df, os.path.normpath(bd) + '_FINISHED' + os.sep + 'time_df_' + time_str + '.pkl')
 
 
 # def batch_process_videos_on_colab(bd, local_temp_dir, video_batch_size=30):
@@ -305,10 +346,10 @@ def make_mp4_list_dict(video_directory, overwrite=False):
     fn = video_directory + os.sep + 'file_list_for_batch_processing.pkl'
     if os.path.isfile(fn):
         warnings.warn("warning file already exists! if you overwrite a partially processed directory, you will " \
-                          "experience issues like overwrite errors, and you'll lose your progress. if you are sure you want to overwrite " \
-                          "make sure to delete the corresponding '_FINISHED' directory, and if necessary move the mp4s back "\
-                          "to the processing folder and set overwrite = True")
-        warnings.warn("this above message is in reference to the following directory...\n"+video_directory)
+                      "experience issues like overwrite errors, and you'll lose your progress. if you are sure you want to overwrite " \
+                      "make sure to delete the corresponding '_FINISHED' directory, and if necessary move the mp4s back " \
+                      "to the processing folder and set overwrite = True")
+        warnings.warn("this above message is in reference to the following directory...\n" + video_directory)
         print(video_directory)
 
         # assert overwrite, "warning file already exists! if you overwrite a partially processed directory, you will " \
@@ -347,8 +388,7 @@ def get_whacc_path():
 def load_feature_data():
     x = get_whacc_path() + "/whacc_data/feature_data/"
     d = load_obj(x + 'feature_data_dict.pkl')
-    x = d['features_used_of_10'][:]
-    d['features_used_of_10_bool'] = [True if k in x else False for k in range(2048 * 41 + 41)]
+    d['final_selected_features'] = np.where(d['final_selected_features_bool'])[0]
     return d
 
 
@@ -370,7 +410,10 @@ def get_selected_features(greater_than_or_equal_to=4):
 
     fd = load_feature_data()
     features_out_of_10 = fd['features_used_of_10']
+
     keep_features_index = np.where(features_out_of_10 >= greater_than_or_equal_to)[0]
+
+    features_used_of_10_bool = [True if k in x else False for k in range(2048 * 41 + 41)]
     return keep_features_index
 
 
@@ -425,7 +468,7 @@ def copy_h5_key_to_another_h5(h5_to_copy_from, h5_to_copy_to, label_string_to_co
                                   data=h[label_string_to_copy_from][:])
 
 
-def lister_it(in_list, keep_strings='', remove_string=None, return_bool_index=False):
+def lister_it(in_list, keep_strings='', remove_string=None, return_bool_index=False) -> object:
     if len(in_list) == 0:
         print("in_list was empty, returning in_list")
         return in_list
