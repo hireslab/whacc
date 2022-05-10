@@ -2,7 +2,7 @@ from natsort import natsorted, ns
 import matplotlib.pyplot as plt
 import h5py
 import numpy as np
-from whacc import utils
+from whacc import utils, image_tools
 import os
 test_set_to = 10
 from natsort import natsorted, ns
@@ -412,17 +412,52 @@ ax.legend(targets)
 ax.grid()
 
 
+
+
+
+fn = '/Volumes/GoogleDrive-114825029448473821206/My Drive/colab_batch_processing_test/add_files_here_FINISHED/Jon/AH0407/160613/AH0407x160609_final_to_combine_1_to_5_of_5.h5'
+fn = '/Users/phil/Desktop/pipeline_test/data_FINISHED/AH0407x160609_final_to_combine_1_to_10_of_10.h5'
+fn = '/Users/phil/Desktop/feature_example2_feature_data.h5'
+fn = '/Users/phil/Desktop/pipeline_test/data_FINISHED/AH0407x160609_final_to_combine_1_to_2_of_10.h5'
+from whacc import utils, image_tools
+import matplotlib.pyplot as plt
+utils.print_h5_keys(fn)
+
+d = utils.load_feature_data()
+
+all_x = []
+for k in d['feature_list_unaltered']:
+    with h5py.File(fn, 'r') as h:
+        x = h[k][:]
+        if len(x.shape) == 1:
+            x = x[:, None]
+        all_x.append(x)
+all_x = np.hstack(all_x)
+X = all_x[:, d['final_selected_features_bool']]
+
+
+
+X = image_tools.get_h5_key_and_concatenate(fn, 'final_features_2105')
+labels = image_tools.get_h5_key_and_concatenate(fn, 'labels')
+
 mod_dir = '/Volumes/GoogleDrive-114825029448473821206/My Drive/LIGHT_GBM/models/10_sets_frame_nums_split_then_random_split_method_numpy_feature_selection_V1/'
+mod_dir = '/Volumes/GoogleDrive-114825029448473821206/My Drive/LIGHT_GBM/models/10_sets_frame_nums_split_then_random_split_method_numpy_feature_selection_V3_num2_v4_num4/'
+
 mods = utils.get_files(mod_dir, '*')
-mods = natsorted(mods, alg=ns.REAL)[:test_set_to]
-lgbm = utils.load_obj(mods[0])
-
-lgbm_shap = lgbm.predict(X, pred_contrib=True)
-
+# mods = natsorted(mods, alg=ns.REAL)[:test_set_to]
+lgbm = utils.load_obj(mods[1])
+# lgbm_shap = lgbm.predict(X, pred_contrib=True)
 
 
+y_hat = lgbm.predict(X)
+plt.plot(y_hat)
+
+plt.plot(labels)
 
 
+"""
+clearly the files being loaded are not the same as the files being trained on
+"""
 
 
 

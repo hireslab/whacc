@@ -15,6 +15,10 @@ from datetime import datetime
 
 from tqdm.autonotebook import tqdm
 
+
+fn = '/Volumes/GoogleDrive-114825029448473821206/My Drive/colab_batch_processing_test/add_files_here_FINISHED/Jon/AH0407/160613/AH0407x160609_final_to_combine_1_to_5_of_5.h5'
+from whacc import utils
+utils.print_h5_keys(fn)
 # def total_rolling_sliding_window_view(data_in, win, operation_function, shift_from_center = 0):
 #   assert win%2 == 1, 'window must be odd'
 #   mid = win//2
@@ -606,7 +610,7 @@ utils.print_h5_keys(h5_in_temp)
 video_directory = '/Users/phil/Desktop/pipeline_test/data/'
 local_temp_dir = '/Users/phil/Desktop/pipeline_test/temp_dir/'
 utils.make_mp4_list_dict(video_directory, overwrite=True)
-utils.batch_process_videos_on_colab(video_directory, local_temp_dir, 10)
+utils.batch_process_videos_on_colab(video_directory, local_temp_dir, 2)
 
 
 FM = feature_maker2(h5_in_temp, operational_key='FD__original', delete_if_exists=True)

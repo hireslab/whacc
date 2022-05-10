@@ -1,8 +1,14 @@
 from whacc import utils
 from whacc import image_tools
 import tensorflow as tf
-from keras.callbacks import ModelCheckpoint
-import keras
+
+
+from tensorflow.keras.callbacks import ModelCheckpoint
+# from keras.callbacks import ModelCheckpoint
+from tensorflow import keras
+# import keras
+
+
 from sklearn.utils import class_weight
 import numpy as np
 import time

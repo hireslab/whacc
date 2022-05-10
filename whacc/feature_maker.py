@@ -677,7 +677,7 @@ def standard_feature_generation2(h5_feature_data, write_to_this_h5 = None, write
                     if len(x.shape)==1:
                         x = x[:, None]
                     ind_add = x.shape[1]
-                    h2['final_features_2105'][:, cnt:cnt+ind_add]
+                    h2['final_features_2105'][:, cnt:cnt+ind_add] = x
                     cnt+=ind_add
                     # final_mat.append(x)
     # final_mat = np.hstack(final_mat)
