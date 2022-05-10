@@ -1,3 +1,14 @@
 whacc/whacc_data/final_model/final_resnet50V2_full_model/saved_model.pb
 whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/variables.data-00000-of-00001
 whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/variables.index
+
+
+git lfs track whacc/whacc_data/final_model/final_resnet50V2_full_model/*.pb
+git lfs track whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/*.data-00000-of-00001
+git lfs track whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/*.index
+
+
+
+git add whacc/whacc_data/final_model/final_resnet50V2_full_model/saved_model.pb
+git add whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/variables.data-00000-of-00001
+git add whacc/whacc_data/final_model/final_resnet50V2_full_model/variables/variables.index
