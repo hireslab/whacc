@@ -1,6 +1,5 @@
 
 
-
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 
@@ -20,64 +19,99 @@ from imgaug import augmenters as iaa  # optional program to further augment data
 import lightgbm as lgb
 
 import shap
+
+from whacc.figures import pretty_plots
+pretty_plots
+
+
+def load_selected_features(h5_in, feature_list = None, feature_index=None, time_index=None, return_labels = False, label_key = 'labels'):
+    """
+
+    Parameters
+    ----------
+    h5_in : full directory (or list of full directories of multiple h5s) of the full feature h5 file 84,009
+    feature_index : bool array of len 84,009
+
+    Returns
+    -------
+
+    """
+
+    def indexit(arr, index):
+        out = []
+        for k in index:
+            out.append(arr[k])
+        return np.asarray(out)
+
+    def extract_indexed_features(x, all_x_in, feature_index_in):
+        if len(x.shape) > 1:
+            inds = feature_index_in[:x.shape[1]]
+            del feature_index_in[:x.shape[1]]
+            x = x[:, inds]
+            if all_x_in is None: # init
+                all_x_in = x
+            else:
+                all_x_in = np.hstack((all_x_in, x))
+        else:
+            inds = feature_index_in.pop(0)  # single true or false to include the "TOTAL" variables
+            if inds:
+                if all_x_in is None: # init
+                    all_x_in = x[:, None]
+                else:
+                    all_x_in = np.hstack((all_x_in, x[:, None]))
+        return all_x_in, feature_index_in
+
+    d = utils.load_feature_data()
+    if feature_list is None:
+        feature_list = d['feature_list_unaltered']
+    if feature_index is None:
+        feature_index= d['final_selected_features_bool']
+        # feature_index = utils.get_selected_features(greater_than_or_equal_to=4)
+    feature_index = utils.make_list(feature_index)
+    feature_index = copy.deepcopy(feature_index)
+
+    if isinstance(h5_in, list):
+        all_x = []
+        all_y = []
+        for k in h5_in:
+            tmp_x, tmp_y = load_selected_features(k, feature_list, feature_index, time_index, return_labels, label_key)
+            all_x.append(tmp_x)
+            all_y.append(tmp_y)
+            del tmp_x, tmp_y
+
+        all_x = np.vstack(all_x)
+        if return_labels:
+            all_y = np.hstack(all_y)
+            return all_x, all_y
+        return all_x
+
+    all_x = None
+    for k in tqdm(feature_list):
+        if time_index is not None:
+            x = []
+            with h5py.File(h5_in, 'r') as h:
+                for i in time_index:
+                    x.append(h[k][i])
+            x = np.asarray(x)
+        else:
+            x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
+
+        all_x, feature_index = extract_indexed_features(x, all_x, feature_index)
+
+    if return_labels:
+        all_y = image_tools.get_h5_key_and_concatenate(h5_in, label_key).astype('float32')
+        all_y = np.hstack(all_y)
+        if time_index is not None:
+            all_y = indexit(all_y, time_index)
+        return all_x, all_y
+    return all_x
+
+
+
+
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$$$$$$$$$$$$$$$$$$$$$$$$ SET MATPLOTLIB DEFAULTS $$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-CB91_Blue = '#2CBDFE'
-CB91_Green = '#47DBCD'
-CB91_Pink = '#F3A0F2'
-CB91_Purple = '#9D2EC5'
-CB91_Violet = '#661D98'
-CB91_Amber = '#F5B14C'
-
-color_list = [CB91_Blue, CB91_Pink, CB91_Green, CB91_Amber,
-              CB91_Purple, CB91_Violet]
-plt.rcParams['axes.prop_cycle'] = plt.cycler(color=color_list)
-
-import seaborn as sns
-
-sns.set(rc={
- 'axes.axisbelow': False,
- 'axes.edgecolor': 'lightgrey',
- 'axes.facecolor': 'None',
- 'axes.grid': False,
- 'axes.labelcolor': 'dimgrey',
- 'axes.spines.right': False,
- 'axes.spines.top': False,
- 'figure.facecolor': 'white',
- 'lines.solid_capstyle': 'round',
- 'patch.edgecolor': 'w',
- 'patch.force_edgecolor': True,
- 'text.color': 'dimgrey',
- 'xtick.bottom': False,
- 'xtick.color': 'dimgrey',
- 'xtick.direction': 'out',
- 'xtick.top': False,
- 'ytick.color': 'dimgrey',
- 'ytick.direction': 'out',
- 'ytick.left': False,
- 'ytick.right': False})
-sns.set_context("notebook", rc={"font.size":16,
-                                "axes.titlesize":20,
-                                "axes.labelsize":18})
-
-## font
-
-import matplotlib
-matplotlib.rcParams['font.family'] = "sans-serif"
-matplotlib.rcParams['font.sans-serif'] = "Arial"
-
-plt.rcParams.update({'font.family':'Arial'})
-
-# plt.rcParams.update({'font.family':'sans-serif', 'fontname':'Arial'})
-from matplotlib.font_manager import findfont, FontProperties
-font = findfont(FontProperties(family=['sans-serif']))
-font
-"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$$$$$$$$$$$$$$$$$$$$$$$$ SET MATPLOTLIB DEFAULTS $$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$$$$$$$ _______________________ $$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 
@@ -200,7 +234,7 @@ plt.plot(y[bst_inds[ind]-add_to:bst_inds[ind]+add_to])
 plt.plot(y[271792:271792+200])
 
 plt.plot(y[271792:271792+200-50])
-271792+383810
+# 271792+383810
 
 with h5py.File(h5_in, 'r') as h:
     test_image = h['images'][bst_inds[ind]+383810]
@@ -215,13 +249,14 @@ pp.plot_it()
 """$$$$$$$$$$$ MAKE AN EXAMPLE H5 FOR SHOWING FEATURE ENGINEERING $$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-h5_new = '/Users/phil/Desktop/feature_example.h5'
+h5_in = '/Volumes/GoogleDrive-114825029448473821206/My Drive/colab_data2/model_testing/all_data/all_models/regular_80_border_aug_0_to_9/data/3lag/train_3lag.h5'
+h5_new = '/Users/phil/Desktop/feature_example2.h5'
 utils.print_h5_keys(h5_in)
 with h5py.File(h5_in, 'r') as h:
     with h5py.File(h5_new, 'w') as h2:
         h2['images'] = h['images'][655102:656252]
         h2['labels'] = h['labels'][655102:656252]
-        h2['frame_nums'] = [len(h2['labels'])]
+        h2['frame_nums'] = [len(h2['labels'][:])]
 
 with h5py.File(h5_new, 'r') as h:
     y3 = h['labels'][:]
@@ -241,10 +276,31 @@ utils.convert_h5_to_feature_h5(RESNET_MODEL, in_gen, h5_feature_data)
 # generate all the modified features (41*2048)+41 = 84,009
 utils.standard_feature_generation(h5_feature_data)
 
-all_x = utils.load_selected_features(h5_feature_data)
+# from natsort import natsorted, ns
+# xxxx = natsorted(xxxx, alg=ns.REAL)
+d = utils.load_obj('/Users/phil/Dropbox/HIRES_LAB/GitHub/whacc/whacc/whacc_data/feature_data/feature_data_dict.pkl')
+
+fi_path ='/Volumes/GoogleDrive-114825029448473821206/My Drive/LIGHT_GBM/feature_index_for_feature_selection/only_gain_more_than_2_features_bool_2105_features.npy'
+feature_index = np.load(fi_path)
+
+# all_x, all_y = load_selected_features(h5_feature_data, feature_list = d['feature_list_unaltered'], feature_index=feature_index, return_labels = True, label_key = 'labels')
+
+with h5py.File(h5_feature_data ,'r') as h:
+    all_x = []
+    for k in d['feature_list_unaltered']:
+        x = h[k][:]
+        if len(x.shape)==1:
+            x = x[:, None]
+        all_x.append(x)
+all_x = np.hstack(all_x)
+
+all_x = all_x[:, feature_index]
+# all_x = utils.load_selected_features(h5_feature_data)
+
+all_x.shape
 
 with h5py.File(h5_feature_data, 'r+') as h:
-    h['final_3095_features'] = all_x
+    h['final_selected_features_TEMP'] = all_x
 
 
 
@@ -267,7 +323,7 @@ def cluster_corr(corr_array, max_div_by = 2):
         return corr_array.iloc[idx, :].T.iloc[idx, :]
     return corr_array[idx, :][:, idx], idx
 
-h5_feature_data = '/Users/phil/Desktop/feature_example_feature_data.h5'
+h5_feature_data = '/Users/phil/Desktop/feature_example2_feature_data.h5'
 utils.print_h5_keys(h5_feature_data)
 
 with h5py.File(h5_feature_data, 'r') as h:
@@ -416,22 +472,27 @@ plt.sca(ax[0])
 
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
-"""$$$$$$$$$$$$$$$$$$$ PLOT 3095 features   $$$$$$$$$$$$$$$$$$$$$$$$$"""
+"""$$$$$$$$$$$$$$$$$$$ PLOT 3095 -- final features features   $$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
 """$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"""
+
+
 def foo_norm(x):
     x = x-np.min(x)
     x = x/np.max(x)
     return x
-FD = d['final_3095_features']
-
+# FD = d['final_3095_features']
+FD = d['final_selected_features_TEMP']
+FD[0, :] = FD[0, :]+0.0000001 # to avoid true divide error
+# FD = FD[:, ::10]
+labels = d['labels']
 FD2 = copy.deepcopy(FD)
 for i, k in enumerate(FD.T):
     FD2[:, i] = foo_norm(k)
 FD = FD2
-FD[0, :] = FD[0, :]+0.00000001
+# FD[0, :] = FD[0, :]+0.0000001 # to avoid true divide error
 cc = np.corrcoef(FD, rowvar=False)
-cc, inds = cluster_corr(cc, 40)
+cc, inds = cluster_corr(cc, 1.5)
 data = FD[:, inds].T
 sns.heatmap(cc)
 
@@ -444,7 +505,7 @@ ax_heat = sns.heatmap(data, cbar=False)
 # x = np.linspace(0, 40, 5).astype(int)
 # ax_heat.set_yticks(x)
 # ax_heat.set_yticklabels(x)
-plt.ylabel('TOTAL SD features (2048 reduced to 1)')
+plt.ylabel('6730 feature')
 plt.sca(ax[1])
 plt.plot(labels, 'k-', label='touch trace')
 ax[1].set_yticklabels([])

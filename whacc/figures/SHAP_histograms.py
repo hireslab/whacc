@@ -179,9 +179,27 @@ h5_in = '/Users/phil/Desktop/LIGHT_GBM/reg_80_border_and_andrew_both_samson_both
 
 
 
+for n in feature_list:
+    x = n.split('____')[0][-3:]
+    i = np.where([k in '-0123456789' for k in x])[0][0]
+    print(x[i:])
+    # print(np.asarray(x)[[k in '-0123456789' for k in x]])
+    # asdf
 
 
-feature_list = natsorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__')) # I do use os sorted here
+
+
+#
+# with h5py.File(h5_in, 'r') as h:
+#    for k in h.keys():
+#        if 'FD__' in k:
+#            print(k)
+h5_final_keys_sorted = utils.print_h5_keys(h5_in, 1, 0)
+
+
+
+
+feature_list == natsorted(utils.lister_it(utils.print_h5_keys(h5_in, 1, 0), keep_strings='FD__')) # I do use os sorted here
 final_feature_names, feature_names, feature_nums, feature_list_short = get_feature_data_names(feature_list)
 # directories with data and models
 bd = '/Volumes/rig1 EPHUS pc backup /LIGHT_GBM/FEATURE_DATA'
@@ -220,6 +238,10 @@ for mn in np.unique(mod_list):
 
 tmp1 = np.asarray(tmp1)
 print(tmp1.shape)
+
+tmp5 = np.sum(tmp1>0, axis=0)
+
+plt.imshow(tmp1[:, :100])
 
 tmp3 = []
 for k in tmp1:

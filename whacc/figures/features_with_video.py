@@ -26,7 +26,9 @@ def cluster_corr(corr_array, max_div_by = 2):
 
 """NOTE you will have to have both the features and the images in one H5 file"""
 
+
 h5_in = '/Volumes/GoogleDrive-114825029448473821206/My Drive/LIGHT_GBM/example_feature.h5'
+# h5_in = '/Users/phil/Desktop/feature_example_feature_data.h5'
 
 # utils.print_h5_keys(h5_in)
 with h5py.File(h5_in, 'r') as h:
