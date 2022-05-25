@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow import keras
 import matplotlib.pyplot as plt
 import numpy as np
 import h5py
@@ -8,9 +7,47 @@ from whacc import utils
 import copy
 from matplotlib import cm
 from tqdm import tqdm
-import time
-import os
-import pdb
+import pandas as pd
+# from tensorflow import keras
+# import time
+# import os
+# import pdb
+
+
+def thresholded_error_types(real, yhat_proba, edge_threshold=4, thresholds=None):
+    """
+    Parameters
+    ----------
+    real : binary actaul touch labels
+    yhat_proba : probability of touch array
+    edge_threshold : determines 'unacceptable' edge error length default = 4, so append and deducts greater than or
+    equal to 4 will be put in a separate list and considered just as bad as touch count errors
+    thresholds :
+
+    Returns
+    -------
+    df --> data frame with count of errors for each error type for each threshold
+
+    """
+    if thresholds is None:
+        thresholds = np.linspace(0.001, 1 - .001, 100)
+    keys = ['ghost', 'miss', 'join', 'split']
+    keys = keys + [k.replace('###', str(edge_threshold)) for k in ['append_###+', 'deduct_###+']] + ['append', 'deduct']
+    d = dict()
+    for k in keys:
+        d[k] = []
+    for k in tqdm(thresholds):
+        pred = yhat_proba > k
+        a = error_analysis(real, pred)
+        for kk in keys[:-4]:
+            d[kk].append(np.sum(np.asarray(a.all_error_type_sorted) == np.asarray([kk])))
+        for kk2, kk1 in zip(keys[-4:-2], keys[-2:]):
+            inds = np.where(np.asarray(a.all_error_type_sorted) == np.asarray([kk1]))[0]
+            lens = np.asarray(a.error_lengths_sorted)[inds]
+            d[kk1].append(np.sum(lens < edge_threshold))
+            d[kk2].append(np.sum(lens >= edge_threshold))
+    df = pd.DataFrame(d)
+    return df
 
 
 class basic_metrics():
@@ -226,14 +263,13 @@ class pole_plot():
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
         self.frame_nums = frame_num_array
-        self.onset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([0,1]))+1
-        self.offset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([1,0]))
-        self.onset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([0,1]))+1
-        self.offset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([1,0]))
+        self.onset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([0, 1])) + 1
+        self.offset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([1, 0]))
+        self.onset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([0, 1])) + 1
+        self.offset_inds_pred = utils.search_sequence_numpy(pred_bool, np.asarray([1, 0]))
 
         # np.concatenate((np.asarray(self.error_lengths_sorted)[self.onset_append_inds], np.asarray(self.error_lengths_sorted)[self.onset_deduct_inds]*-1))
         # np.concatenate((np.asarray(self.error_lengths_sorted)[self.offset_append_inds], np.asarray(self.error_lengths_sorted)[self.offset_deduct_inds]*-1))
-
 
         self.correct_onset_inds_sorted = np.intersect1d(self.onset_inds_real, self.onset_inds_pred)
         self.correct_offset_inds_sorted = np.intersect1d(self.offset_inds_real, self.offset_inds_pred)
@@ -317,8 +353,10 @@ class error_analysis():
         self.correct_onset_inds_sorted = np.intersect1d(self.onset_inds_real, self.onset_inds_pred)
         self.correct_offset_inds_sorted = np.intersect1d(self.offset_inds_real, self.offset_inds_pred)
 
-        self.onset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.onset_append_inds], np.asarray(self.error_lengths_sorted)[self.onset_deduct_inds]*-1))
-        self.offset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.offset_append_inds], np.asarray(self.error_lengths_sorted)[self.offset_deduct_inds]*-1))
+        self.onset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.onset_append_inds],
+                                              np.asarray(self.error_lengths_sorted)[self.onset_deduct_inds] * -1))
+        self.offset_distance = np.concatenate((np.asarray(self.error_lengths_sorted)[self.offset_append_inds],
+                                               np.asarray(self.error_lengths_sorted)[self.offset_deduct_inds] * -1))
 
         self.onset_distance = np.concatenate((self.onset_distance, np.zeros_like(self.correct_onset_inds_sorted)))
         self.offset_distance = np.concatenate((self.offset_distance, np.zeros_like(self.correct_offset_inds_sorted)))
