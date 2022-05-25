@@ -715,7 +715,6 @@ def standard_feature_generation(h5_feature_data):
 
 def load_selected_features(h5_in, feature_index=None):
     """
-
     Parameters
     ----------
     h5_in : full directory of the full feature h5 file 84,009
@@ -730,7 +729,7 @@ def load_selected_features(h5_in, feature_index=None):
     if feature_index is None:
         feature_index = d['final_selected_features_bool']
         # feature_index = utils.get_selected_features(greater_than_or_equal_to=4)
-    feature_index = utils.make_list(feature_index)
+    feature_index = list(feature_index)
 
     if isinstance(h5_in, list):
         all_x = []
@@ -748,10 +747,17 @@ def load_selected_features(h5_in, feature_index=None):
     all_x = None
     for k in tqdm(feature_list):
         if all_x is None:
-            all_x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
-            inds = feature_index[:all_x.shape[1]]
-            del feature_index[:all_x.shape[1]]
-            all_x = all_x[:, inds]
+            x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
+            if len(x.shape) > 1:
+                inds = feature_index[:x.shape[1]]
+                del feature_index[:x.shape[1]]
+
+            else:
+                inds = feature_index.pop(0)  # single true or false to include the "TOTAL" variables
+            if np.any(inds):
+                if len(x.shape) == 1:
+                    x = x[:, None]
+                all_x = copy.deepcopy(x)
         else:
             x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
             if len(x.shape) > 1:
@@ -764,3 +770,55 @@ def load_selected_features(h5_in, feature_index=None):
                 if inds:
                     all_x = np.hstack((all_x, x[:, None]))
     return all_x
+
+# def load_selected_features(h5_in, feature_index=None):
+#     """
+#
+#     Parameters
+#     ----------
+#     h5_in : full directory of the full feature h5 file 84,009
+#     feature_index : bool array of len 84,009
+#
+#     Returns
+#     -------
+#
+#     """
+#     d = utils.load_feature_data()
+#     feature_list = d['feature_list_unaltered']
+#     if feature_index is None:
+#         feature_index = d['final_selected_features_bool']
+#         # feature_index = utils.get_selected_features(greater_than_or_equal_to=4)
+#     feature_index = utils.make_list(feature_index)
+#
+#     if isinstance(h5_in, list):
+#         all_x = []
+#         all_y = []
+#         for k in h5_in:
+#             tmp_x, tmp_y = load_selected_features(k, feature_list)
+#             all_x.append(tmp_x)
+#             all_y.append(tmp_y)
+#             del tmp_x, tmp_y
+#
+#         all_x = np.vstack(all_x)
+#         all_y = np.hstack(all_y)
+#         return all_x
+#
+#     all_x = None
+#     for k in tqdm(feature_list):
+#         if all_x is None:
+#             all_x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
+#             inds = feature_index[:all_x.shape[1]]
+#             del feature_index[:all_x.shape[1]]
+#             all_x = all_x[:, inds]
+#         else:
+#             x = image_tools.get_h5_key_and_concatenate(h5_in, k).astype('float32')
+#             if len(x.shape) > 1:
+#                 inds = feature_index[:x.shape[1]]
+#                 del feature_index[:x.shape[1]]
+#                 x = x[:, inds]
+#                 all_x = np.hstack((all_x, x))
+#             else:
+#                 inds = feature_index.pop(0)  # single true or false to include the "TOTAL" variables
+#                 if inds:
+#                     all_x = np.hstack((all_x, x[:, None]))
+#     return all_x
