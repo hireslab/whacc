@@ -28,6 +28,11 @@ def load_final_model():
     mod.compile()
     return mod
 
+def load_final_light_GBM():
+    mod_path = utils.get_whacc_path() + '/whacc_data/final_model/light_GBM_model/mod_67_with_threshold.pkl'
+    mod = utils.load_obj(mod_path)
+    return mod
+
 def build_model(info_dict, labels, model_name_str, base_learning_rate=0.00001, dropout_val=None, class_numbers=None,
                 IMG_SIZE=96):
     if class_numbers is None:
