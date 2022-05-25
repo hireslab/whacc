@@ -29,6 +29,28 @@ import pytz
 import warnings
 
 
+def make_final_predictions_GBM(h5_in_list, thresh=None, write_to_h5=True, overwrite_if_exists=False,
+                               proba_key='yhat_proba', label_key='yhat'):
+    h5_in_list = make_list(h5_in_list)
+    mod = model_maker.load_final_light_GBM()
+    if thresh is None:
+        thresh = mod.FINAL_THRESHOLD_with_7_smooth
+    for h5_in in h5_in_list:
+        print(h5_in)
+        tmp1 = h5_key_exists(h5_in, proba_key)
+        tmp2 = h5_key_exists(h5_in, label_key)
+        if not overwrite_if_exists:
+            if tmp1 or tmp2:
+                warnings.warn('\nKEY EXISTS NOT WRITTING FOR '+ h5_in +'\noverwrite_if_exists is FALSE\nproba_key exist --> ' + str(
+                tmp1) + '\nlabel_key exists --> ' + str(tmp2))
+        with h5py.File(h5_in, 'r+') as h:
+            x = image_tools.get_h5_key_and_concatenate(h5_in, 'final_features_2105')
+            yhat = mod.predict(x)
+            if write_to_h5:
+                overwrite_h5_key(h5_in, proba_key, yhat)
+                overwrite_h5_key(h5_in, label_key, (yhat > thresh).astype(int))
+
+
 def info(x):
     if isinstance(x, dict):
         print('type is dict')
@@ -1652,7 +1674,12 @@ def make_list(x, suppress_warning=False):
     if not isinstance(x, list):
         if not suppress_warning:
             print("""input is supposed to be a list, converting it but user should do this to suppress this warning""")
-        x2 = [x]
+        if type(x).__module__ == np.__name__:
+            x2 = list(x)
+        elif isinstance(x, str):
+            x2 = [x]
+        else:
+            x2 = [x]
         return x2
     else:
         return x
