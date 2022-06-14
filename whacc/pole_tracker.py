@@ -313,7 +313,7 @@ class PoleTracking():
         in_range[:] = np.nan
 
         # check to make sure sizes across file names and images are equal
-        assert len(fnn) == len_all, '''the fnn and length of frames don't match '''
+        assert len(fnn) == len_all, '''the fnn (file_name_nums) and length of frames don't match '''
 
         with h5py.File(save_directory + file_name, 'r+') as hf:  # with -> auto close in case of failure
             hf.create_dataset('locations_x_y', data=loc_stack_all)
@@ -332,21 +332,12 @@ class PoleTracking():
         print('Tracker runtime : ' + str(elapsed / 60) + ' mins')
         return save_directory + file_name
 
-    def track(self, video_file, match_method='cv2.TM_CCOEFF'):
-        """this function scans a template image across each frame of the video to identify the pole location.
-        This assumes there is a pole at each frame. Cropping optimizes scanning by ~80% and uses the first frame
-        as a point of reference.
-
-        Parameters
-        ----------
-        video_file :
-
-        match_method :
-             (Default value = 'cv2.TM_CCOEFF')
-
-        Returns
-        -------
-
+    def track_old(self, video_file, match_method='cv2.TM_CCOEFF'):
+        """
+        ########################################################
+        this method fails to give frames when there is a header error for a certain frame even though that data is accesible
+        so I switched to reading number of frames and then looping through that instead, everthing else should be the same
+        ########################################################
         """
 
         # width and height of img_stacks will be that of template (61x61)
@@ -367,7 +358,7 @@ class PoleTracking():
         tmp1 = 0
         while success:
             # preprocess image
-            tmp1 = tmp1 + 1
+            tmp1 = tmp1 + 
             if 'frame' in locals() and self.use_narrow_search_to_speed_up:
                 frame, crop_top_left, crop_bottom_right = self.crop_image_from_top_left(og_frame,
                                                                                         crop_top_left2,
@@ -393,6 +384,73 @@ class PoleTracking():
             # iterate to next frame and crop using current details
             fno += 1
             success, og_frame = video.read()
+
+        img_stack = np.array(img_list, dtype=np.uint8)
+        loc_stack = np.array(loc_list)
+        return img_stack, loc_stack, max_match_val
+
+    def track(self, video_file, match_method='cv2.TM_CCOEFF'):
+        """this function scans a template image across each frame of the video to identify the pole location.
+        This assumes there is a pole at each frame. Cropping optimizes scanning by ~80% and uses the first frame
+        as a point of reference.
+
+        Parameters
+        ----------
+        video_file :
+
+        match_method :
+             (Default value = 'cv2.TM_CCOEFF')
+
+        Returns
+        -------
+
+        """
+
+        # width and height of img_stacks will be that of template (61x61)
+        w, h = self.template_image.shape[::-1]
+        max_match_val = []
+        # open video at directory
+        video = cv2.VideoCapture(video_file)
+        if (video.isOpened() == False):
+            print('error opening video file')
+        frame_numbers = int(video.get(7))
+
+        img_list = []
+        loc_list = []
+        # video.set(cv2.cv2.CAP_PROP_POS_FRAMES, 0)
+        # success, og_frame = video.read()
+        method = eval(match_method)
+        crop_top_left = 0
+        pole_center = 0
+        for fn in range(frame_numbers):
+            # iterate to next frame and crop using current details
+            video.set(cv2.cv2.CAP_PROP_POS_FRAMES, fn)
+            success, og_frame = video.read()
+
+            # preprocess image
+            if 'frame' in locals() and self.use_narrow_search_to_speed_up:
+                frame, crop_top_left, crop_bottom_right = self.crop_image_from_top_left(og_frame,
+                                                                                        crop_top_left2,
+                                                                                        [w, h],
+                                                                                        3)
+            else:
+                frame = og_frame
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype('uint8').copy()
+
+            # Apply template Matching
+            res = cv2.matchTemplate(img, self.template_image, method)
+            min_val, max_val, min_loc, top_left = cv2.minMaxLoc(res)
+            max_match_val.append(max_val)
+            top_left = np.flip(np.asarray(top_left))
+
+            # crop image and store
+            crop_img, crop_top_left2, crop_bottom_right2 = self.crop_image_from_top_left(og_frame,
+                                                                                         top_left + crop_top_left,
+                                                                                         [w, h])
+            img_list.append(crop_img)
+            loc_list.append(np.flip(crop_top_left2))
+
+
 
         img_stack = np.array(img_list, dtype=np.uint8)
         loc_stack = np.array(loc_list)
