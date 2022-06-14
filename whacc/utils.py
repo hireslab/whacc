@@ -41,8 +41,9 @@ def make_final_predictions_GBM(h5_in_list, thresh=None, write_to_h5=True, overwr
         tmp2 = h5_key_exists(h5_in, label_key)
         if not overwrite_if_exists:
             if tmp1 or tmp2:
-                warnings.warn('\nKEY EXISTS NOT WRITTING FOR '+ h5_in +'\noverwrite_if_exists is FALSE\nproba_key exist --> ' + str(
-                tmp1) + '\nlabel_key exists --> ' + str(tmp2))
+                warnings.warn(
+                    '\nKEY EXISTS NOT WRITTING FOR ' + h5_in + '\noverwrite_if_exists is FALSE\nproba_key exist --> ' + str(
+                        tmp1) + '\nlabel_key exists --> ' + str(tmp2))
         with h5py.File(h5_in, 'r+') as h:
             x = image_tools.get_h5_key_and_concatenate(h5_in, 'final_features_2105')
             yhat = mod.predict(x)
@@ -364,9 +365,46 @@ def combine_final_h5s(h5_file_list_to_combine, delete_extra_files=False):
             os.remove(k)
 
 
-def make_mp4_list_dict(video_directory, overwrite=False):
-    fn = video_directory + os.sep + 'file_list_for_batch_processing.pkl'
-    if os.path.isfile(fn):
+# def make_mp4_list_dict(video_directory, overwrite=False):
+#     video_directory.replace('\\', '/')
+#     fn = video_directory + '/' + 'file_list_for_batch_processing.pkl'
+#
+#     if os.path.isfile(fn) and not overwrite:
+#         warnings.warn("warning file already exists! if you overwrite a partially processed directory, you will " \
+#                       "experience issues like overwrite errors, and you'll lose your progress. if you are sure you want to overwrite " \
+#                       "make sure to delete the corresponding '_FINISHED' directory, and if necessary move the mp4s back " \
+#                       "to the processing folder and set overwrite = True")
+#         warnings.warn("this above message is in reference to the following directory...\n" + video_directory)
+#         print(video_directory)
+#
+#     else:
+#         tmpd = dict()
+#         tmpd['original_mp4_directory'] = video_directory
+#         tmpd['mp4_names'] = natsorted(glob.glob(video_directory + '/*.mp4'))
+#         tmpd['is_processed'] = np.full(np.shape(tmpd['mp4_names']), False)
+#         tmpd['NOTES'] = """you can put any notes here directly from the text file if you want to"""
+#         tmpd['mp4_names'] = [k.replace('\\', '/') for k in tmpd['mp4_names']]
+#         save_obj(tmpd, fn)
+
+def make_mp4_list_dict(video_directory, overwrite=False, time_sleep_between_delete_for_cloud_update=0):
+    """
+
+    Parameters
+    ----------
+    video_directory :  will look in all sub directoriess recurivly
+    overwrite : if True will delete file if exists
+    time_sleep_between_delete_for_cloud_update : hacky solution to google drive cache issue where the modified data time
+    does not update without a time buffer after being delete. only relivent for if you are overwriting existing files, I
+    know 30 seconds works here, annoying but not that big of a deal at the end of the day
+
+    Returns
+    -------
+
+    """
+    video_directory.replace('\\', '/')
+    fn = video_directory + '/' + 'file_list_for_batch_processing.pkl'
+    buffer_remove_fn = video_directory + '/trash.pkl'
+    if os.path.isfile(fn) and not overwrite:
         warnings.warn("warning file already exists! if you overwrite a partially processed directory, you will " \
                       "experience issues like overwrite errors, and you'll lose your progress. if you are sure you want to overwrite " \
                       "make sure to delete the corresponding '_FINISHED' directory, and if necessary move the mp4s back " \
@@ -374,15 +412,19 @@ def make_mp4_list_dict(video_directory, overwrite=False):
         warnings.warn("this above message is in reference to the following directory...\n" + video_directory)
         print(video_directory)
 
-        # assert overwrite, "warning file already exists! if you overwrite a partially processed directory, you will " \
-        #                   "experience issues like overwrite errors, and you'll lose your progress if you are sure you want to overwrite " \
-        #                   "make sure to delete the corresponding '_FINISHED' directory  and set overwrite = True"
-    tmpd = dict()
-    tmpd['original_mp4_directory'] = video_directory
-    tmpd['mp4_names'] = natsorted(glob.glob(video_directory + '/*.mp4'))
-    tmpd['is_processed'] = np.full(np.shape(tmpd['mp4_names']), False)
-    tmpd['NOTES'] = """you can put any notes here directly from the text file if you want to"""
-    save_obj(tmpd, fn)
+    else:
+        if os.path.isfile(fn):
+            os.remove(fn)
+            time.sleep(time_sleep_between_delete_for_cloud_update)
+        tmpd = dict()
+        tmpd['original_mp4_directory'] = video_directory
+        tmpd['mp4_names'] = natsorted(glob.glob(video_directory + '/*.mp4'))
+        tmpd['is_processed'] = np.full(np.shape(tmpd['mp4_names']), False)
+        tmpd['NOTES'] = """you can put any notes here directly from the text file if you want to"""
+
+        tmpd['mp4_names'] = [k.replace('\\', '/') for k in tmpd['mp4_names']]
+
+        save_obj(tmpd, fn)
 
 
 def _check_pkl(name):
