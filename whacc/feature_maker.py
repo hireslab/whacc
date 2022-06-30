@@ -245,7 +245,8 @@ class feature_maker():
                 data, key_name = temp_funct(*args)
                 if k == 0:
                     self.init_h5_data_key(key_name, data.shape[1], delete_if_exists=self.delete_if_exists)
-                    print('making key, ' + key_name)
+                    if not self.disable_tqdm:
+                        print('making key, ' + key_name)
                 a = self.data_inds
                 h[key_name][a[0]:a[1]] = data
         self.set_data_and_frame(self._frame_num_ind_save_)  # set data back to what it was when user set it
@@ -600,7 +601,7 @@ def standard_feature_generation2(h5_feature_data, write_to_this_h5 = None, write
         os.remove(h5_new)
     shutil.copy(h5_feature_data, h5_new)
 
-    FM = feature_maker(h5_new, operational_key='FD__original', delete_if_exists=True)
+    FM = feature_maker(h5_new, operational_key='FD__original', delete_if_exists=True, disable_tqdm=True)
     for smooth_it_by in tqdm([3, 7, 11, 15, 41]):
         data, key_name = FM.rolling(smooth_it_by, 'mean', save_it=True)
     for periods in tqdm([-3, -1, 2, 3]):
