@@ -403,7 +403,11 @@ class h5_iterative_creator():
                  add_to_existing_H5=False,
                  ignore_image_range_warning=False,
                  dtype_img=h5py.h5t.STD_U8BE,
-                 dtype_labels=h5py.h5t.STD_I32LE):
+                 dtype_labels=h5py.h5t.STD_I32LE,
+                 image_key_name = 'images',
+                 label_key_name = 'labels'):
+        self.img_key = image_key_name
+        self.label_key_name = label_key_name
         self.dtype_img = dtype_img
         self.dtype_labels = dtype_labels
         self.ignore_image_range_warning = False
@@ -480,7 +484,7 @@ class h5_iterative_creator():
         # if set_multiplier:
         self.hf_file.create_dataset("multiplier", [1], h5py.h5t.STD_I32LE, data=images.shape[0])
         if self.color_channel:
-            self.hf_file.create_dataset('images',
+            self.hf_file.create_dataset(self.img_key,
                                         np.shape(images),
                                         self.dtype_img,
                                         # jk need this to not explode the size of the data... commented this out because I wanted to use not 0-255 numbers
@@ -488,14 +492,14 @@ class h5_iterative_creator():
                                         chunks=True,
                                         data=images)
         else:
-            self.hf_file.create_dataset('images',
+            self.hf_file.create_dataset(self.img_key,
                                         np.shape(images),
                                         self.dtype_img,
                                         # jk need this to not explode the size of the data... commented this out because I wanted to use not 0-255 numbers
                                         maxshape=max_shape,
                                         chunks=True,
                                         data=images)
-        self.hf_file.create_dataset('labels',
+        self.hf_file.create_dataset(self.label_key_name,
                                     np.shape(labels),
                                     self.dtype_labels,  # ....... commented this out because we may want floats....
                                     maxshape=(None,),
@@ -519,11 +523,11 @@ class h5_iterative_creator():
         
         """
         self.check_images_uint8(images)
-        self.hf_file['images'].resize(self.hf_file['images'].shape[0] + images.shape[0], axis=0)
-        self.hf_file['labels'].resize(self.hf_file['labels'].shape[0] + labels.shape[0], axis=0)
+        self.hf_file[self.img_key].resize(self.hf_file[self.img_key].shape[0] + images.shape[0], axis=0)
+        self.hf_file[self.label_key_name].resize(self.hf_file[self.label_key_name].shape[0] + labels.shape[0], axis=0)
 
-        self.hf_file['images'][-images.shape[0]:] = images
-        self.hf_file['labels'][-labels.shape[0]:] = labels
+        self.hf_file[self.img_key][-images.shape[0]:] = images
+        self.hf_file[self.label_key_name][-labels.shape[0]:] = labels
 
     def read_h5(self):
         """ """
@@ -567,7 +571,7 @@ def augment_helper(keras_datagen, num_aug_ims, num_reg_ims, in_img, in_label):
     num_aug_ims : int
         number of augmented images to generate from single input image
     num_reg_ims : int
-        number of copies of in_img to produce. will be stacked at the beginning of all_augment variable.
+        number of copies of in_img (original) to produce for output. will be stacked at the beginning of all_augment variable.
         Use dot see augmentation when testing and can be useful if splitting into many H5s if you want an original in each.
     in_img : numpy array
         numpy array either 3D with color channel for the last dim ot 2D
