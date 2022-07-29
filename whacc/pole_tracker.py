@@ -338,6 +338,7 @@ class PoleTracking():
         this method fails to give frames when there is a header error for a certain frame even though that data is accesible
         so I switched to reading number of frames and then looping through that instead, everthing else should be the same
         ########################################################
+
         """
 
         # width and height of img_stacks will be that of template (61x61)
@@ -358,7 +359,7 @@ class PoleTracking():
         tmp1 = 0
         while success:
             # preprocess image
-            tmp1 = tmp1 + 
+            tmp1 = tmp1 + 1
             if 'frame' in locals() and self.use_narrow_search_to_speed_up:
                 frame, crop_top_left, crop_bottom_right = self.crop_image_from_top_left(og_frame,
                                                                                         crop_top_left2,
