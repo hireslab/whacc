@@ -425,7 +425,7 @@ class PoleTracking():
         pole_center = 0
         for fn in range(frame_numbers):
             # iterate to next frame and crop using current details
-            video.set(cv2.cv2.CAP_PROP_POS_FRAMES, fn)
+            video.set(cv2.CAP_PROP_POS_FRAMES, fn)
             success, og_frame = video.read()
 
             # preprocess image
