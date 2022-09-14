@@ -66,7 +66,7 @@ from natsort import natsorted
 
 class PoleTracking():
 
-    def __init__(self, video_directory, template_png_full_name=None, use_narrow_search_to_speed_up=False):
+    def __init__(self, video_directory, template_png_full_name=None, use_narrow_search_to_speed_up=False, select_frame_inds=None):
         """
 
         Parameters
@@ -80,8 +80,10 @@ class PoleTracking():
             used to make pole tracker faster. after finding the first frame, it searches in a limited space around that
             frame. based on "inflation" variable in "crop_image_from_top_left" method below
         """
+        self.select_frame_inds = select_frame_inds
         self.video_directory = video_directory
-        self.video_files = natsorted(glob.glob(os.path.join(video_directory, '*.mp4')))
+
+        self.video_files = utils.sort(glob.glob(os.path.join(video_directory, '*.mp4')))
         self.base_names = [os.path.basename(n).split('.')[0] for n in self.video_files]
         self.use_narrow_search_to_speed_up = use_narrow_search_to_speed_up
         self.frame_num_to_cut = 2000
@@ -298,7 +300,10 @@ class PoleTracking():
         h5creator.close_h5()
 
         #  frame numbers
-        frame_nums = list(map(lambda s: cv2.VideoCapture(s).get(7), self.video_files))
+        if self.select_frame_inds is None:
+            frame_nums = list(map(lambda s: cv2.VideoCapture(s).get(7), self.video_files))
+        else: # exception for when grabbing a few frames for transfer learning
+            frame_nums = [len(self.select_frame_inds)]*len(self.video_files)
 
         tnf = np.vstack([np.array(list(self.trial_nums)).astype(int),
                          np.array(list(frame_nums))])
@@ -418,12 +423,17 @@ class PoleTracking():
 
         img_list = []
         loc_list = []
-        # video.set(cv2.cv2.CAP_PROP_POS_FRAMES, 0)
+        # video.set(cv2.CAP_PROP_POS_FRAMES, 0)
         # success, og_frame = video.read()
         method = eval(match_method)
         crop_top_left = 0
         pole_center = 0
-        for fn in range(frame_numbers):
+        if self.select_frame_inds is None:
+            self.select_frame_inds = range(frame_numbers)
+        else:
+            frame_numbers = len(self.select_frame_inds)
+
+        for fn in self.select_frame_inds:
             # iterate to next frame and crop using current details
             video.set(cv2.CAP_PROP_POS_FRAMES, fn)
             success, og_frame = video.read()
