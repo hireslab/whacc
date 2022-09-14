@@ -6,18 +6,41 @@ from whacc import image_tools
 from whacc import utils
 import copy
 from matplotlib import cm
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 import pandas as pd
 # from tensorflow import keras
 # import time
 # import os
 # import pdb
+def plot_3d_loc_time_confidence_pole_tracker(h5, index =None):
+    locations_x_y = image_tools.get_h5_key_and_concatenate(h5, 'locations_x_y')
+    frame_nums = image_tools.get_h5_key_and_concatenate(h5, 'frame_nums')
+    max_val_stack = image_tools.get_h5_key_and_concatenate(h5, 'max_val_stack')
 
 
-def thresholded_error_types(real, yhat_proba, edge_threshold=4, thresholds=None):
+    X = locations_x_y[:, 0]
+    Y = locations_x_y[:, 1]
+    Z = np.arange(len(X))
+    C = max_val_stack
+    if index is not None:
+        X = X[index]
+        Y = Y[index]
+        Z = Z[index]
+        C = C[index]
+
+    # C = np.array([[255, 0, 0], [0, 255, 0], [0, 0, 255]])
+    fig = plt.figure()
+    # ax = fig.add_subplot(111, projection = '3d')
+    ax = fig.add_subplot(111, projection = '3d')
+    # ax.scatter(X, Y, Z, c = C/255.0)
+    ax.scatter(X, Y, Z, c = C)
+    plt.show()
+
+def thresholded_error_types(real, yhat_proba, edge_threshold=4, frame_num_array=None, thresholds=None):
     """
     Parameters
     ----------
+    frame_num_array :
     real : binary actaul touch labels
     yhat_proba : probability of touch array
     edge_threshold : determines 'unacceptable' edge error length default = 4, so append and deducts greater than or
@@ -36,9 +59,9 @@ def thresholded_error_types(real, yhat_proba, edge_threshold=4, thresholds=None)
     d = dict()
     for k in keys:
         d[k] = []
-    for k in tqdm(thresholds):
+    for k in thresholds:
         pred = yhat_proba > k
-        a = error_analysis(real, pred)
+        a = error_analysis(real, pred, frame_num_array)
         for kk in keys[:-4]:
             d[kk].append(np.sum(np.asarray(a.all_error_type_sorted) == np.asarray([kk])))
         for kk2, kk1 in zip(keys[-4:-2], keys[-2:]):
@@ -227,7 +250,7 @@ class pole_plot():
         with h5py.File(self.img_h5_file, 'r') as h:
             self.current_imgs = image_tools.img_unstacker(h['images'][s1:s2], s2 - s1)
             # plt.imshow(self.current_imgs)
-            self.axs[0].imshow(self.current_imgs)
+            self.axs[0].imshow(self.current_imgs)#, interpolation='nearest', aspect='auto')
             self.axs[0].axis('off')
 
         leg = []
@@ -262,6 +285,7 @@ class pole_plot():
 
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
+        frame_num_array = frame_num_array.astype(int)
         self.frame_nums = frame_num_array
         self.onset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([0, 1])) + 1
         self.offset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([1, 0]))
