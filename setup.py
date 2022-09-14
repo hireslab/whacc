@@ -19,7 +19,7 @@ extra_files = package_files('/Users/phil/Dropbox/HIRES_LAB/GitHub/whacc/whacc/wh
 extra_files
 
 setup(name='whacc',
-      version='1.1.28',
+      version='1.1.42',
       author="Phillip Maire",
       license='MIT',
       description='Automatic and customizable pipeline for creating a CNN + light GBM model to predict whiskers contacting objects',
