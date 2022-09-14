@@ -1,7 +1,7 @@
 import os
 import shutil
 from natsort import natsorted, ns
-from whacc import utils, image_tools
+from whacc import utils, image_tools, model_maker
 
 import copy
 import numpy as np
@@ -526,6 +526,7 @@ def total_rolling_operation_h5_wrapper(FM, window, operation, key_to_operate_on,
 
 def convert_h5_to_feature_h5(model, in_generator, h5_new_full_file_name=None):
     assert len(in_generator.H5_file_list) == 1, 'generator must be made from a single H5 file for now can change later'
+    mod_head = model_maker.load_final_model_HEAD()
     # this is due to needing to copy over the other keys like frame nums will need to combine it!!
     # see below line
     # utils.copy_over_all_non_image_keys(in_generator.H5_file_list[0], h5_new_full_file_name)
@@ -545,16 +546,18 @@ def convert_h5_to_feature_h5(model, in_generator, h5_new_full_file_name=None):
                                            ignore_image_range_warning=False,
                                            dtype_img=h5py.h5t.IEEE_F32LE,
                                            dtype_labels=h5py.h5t.IEEE_F32LE)
-
+    all_pred = []
     for k in tqdm(range(in_generator.__len__())):
         x, y = in_generator.__getitem__(k)
         features = model.predict(x)
+        all_pred.append(mod_head.predict(features))
         h5c.add_to_h5(features, y)
     with h5py.File(h5_new_full_file_name, 'r+') as h:
         h['FD__original'] = h['images'][:]
         del h['images']
-
+    all_pred = np.concatenate(all_pred)
     utils.copy_over_all_non_image_keys(in_generator.H5_file_list[0], h5_new_full_file_name)
+    utils.overwrite_h5_key(h5_new_full_file_name, 'CNN_pred', all_pred)
 
 
 def get_feature_data_names(feature_list, n=2048):
