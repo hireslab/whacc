@@ -12,7 +12,7 @@ import pandas as pd
 # import time
 # import os
 # import pdb
-def plot_3d_loc_time_confidence_pole_tracker(h5, index =None):
+def plot_3d_loc_time_confidence_pole_tracker(h5, index =None, center_xy=False, center_start_end = [0,50]):
     locations_x_y = image_tools.get_h5_key_and_concatenate(h5, 'locations_x_y')
     frame_nums = image_tools.get_h5_key_and_concatenate(h5, 'frame_nums')
     max_val_stack = image_tools.get_h5_key_and_concatenate(h5, 'max_val_stack')
@@ -22,11 +22,21 @@ def plot_3d_loc_time_confidence_pole_tracker(h5, index =None):
     Y = locations_x_y[:, 1]
     Z = np.arange(len(X))
     C = max_val_stack
+    if center_xy:
+        for i1, i2 in utils.loop_segments(frame_nums):
+
+            X[i1:i2] = X[i1:i2]-np.mean(X[i1:i2][center_start_end[0]:center_start_end[1]])
+            Y[i1:i2] = Y[i1:i2]-np.mean(Y[i1:i2][center_start_end[0]:center_start_end[1]])
+
     if index is not None:
         X = X[index]
         Y = Y[index]
         Z = Z[index]
         C = C[index]
+
+
+
+
 
     # C = np.array([[255, 0, 0], [0, 255, 0], [0, 0, 255]])
     fig = plt.figure()
@@ -285,7 +295,12 @@ class pole_plot():
 
 class error_analysis():
     def __init__(self, real_bool, pred_bool, frame_num_array=None):
-        frame_num_array = frame_num_array.astype(int)
+        if frame_num_array is None:
+            frame_num_array = np.asarray([len(real_bool)])
+        else:
+            # assert 'array' in str(type(frame_num_array)).lower(), 'frame_num_array must be a numpy array or None'
+            frame_num_array = np.asarray(frame_num_array).astype(int)
+        frame_num_array = list(frame_num_array.astype(int))
         self.frame_nums = frame_num_array
         self.onset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([0, 1])) + 1
         self.offset_inds_real = utils.search_sequence_numpy(real_bool, np.asarray([1, 0]))
@@ -298,9 +313,9 @@ class error_analysis():
         self.correct_onset_inds_sorted = np.intersect1d(self.onset_inds_real, self.onset_inds_pred)
         self.correct_offset_inds_sorted = np.intersect1d(self.offset_inds_real, self.offset_inds_pred)
 
-        if frame_num_array is None:
-            frame_num_array = np.asarray([len(real_bool)])
-        frame_num_array = list(frame_num_array.astype(int))
+
+        # if frame_num_array is None:
+        #     frame_num_array = [len(self.pred)]
         self.real = real_bool
         self.pred = pred_bool
         self.type_list = ['ghost', 'ghost', 'append', 'miss', 'miss', 'deduct', 'join', 'split']
@@ -325,8 +340,7 @@ class error_analysis():
         self.all_error_nums = []
 
         self.which_side_test = []
-        if frame_num_array is None:
-            frame_num_array = [len(self.pred)]
+
 
         for i, (i1, i2) in enumerate(self.loop_segments(frame_num_array)):  # separate the trials
             d = self.get_diff_array(self.real[i1:i2], self.pred[i1:i2])  # TP = 2, TN = 0, FP = -1, FN = 1
@@ -413,7 +427,10 @@ class error_analysis():
                 return -7
             elif x[1] == 1:  # full trial miss touch
                 return -4
-        if np.isnan(x[0]):  # edge case (error being parsed is @ index 0 or -1)
+        if np.isnan(x[0]) or np.isnan(x[-1]):  # edge case (error being parsed is @ index 0 or -1)
+            # ## added " or np.isnan(x[-1]):" on september 17th 2022, in case something goes wrong, this makes real-> [0,0,0,1,1,1] ...
+            # pred-> [0,0,0,1,1,0] a split instead of a deduct, this is important for TL where length of training data can very ...
+            # small and in the middle of a touch
             return -1
         #                                          ghost.   ghost.   append.  miss.   miss.    deduct.
         ind = np.where(np.all(x[:2] == np.asarray([[0, -1], [1, -1], [2, -1], [0, 1], [-1, 1], [2, 1]]), axis=1))[0][0]
