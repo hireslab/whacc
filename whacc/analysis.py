@@ -494,7 +494,7 @@ class error_analysis():
         self.type_list_coded ['ghost', 'miss', 'join', 'split', 'append', 'deduct']
         """
         coded_array = np.zeros_like(self.real) - 2
-        all_errors = np.asarray(self.all_errors)
+        all_errors = np.asarray(self.all_errors, dtype=object)
         all_error_type = np.asarray(self.all_error_type)
         for i, k in enumerate(self.type_list_coded):
             tmp2 = all_errors[k == all_error_type]
