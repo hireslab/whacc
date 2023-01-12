@@ -15,4 +15,11 @@
     <option name="myDocStringFormat" value="NumPy" />
     <option name="renderExternalDocumentation" value="true" />
   </component>
+  <component name="PyNamespacePackagesService">
+    <option name="namespacePackageFolders">
+      <list>
+        <option value="$MODULE_DIR$/whacc/whacc_data" />
+      </list>
+    </option>
+  </component>
 </module>

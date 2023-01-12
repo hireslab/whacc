@@ -2,12 +2,12 @@ h5py>=2.10.0
 scipy>=1.4.1
 numpy>=1.20.0
 opencv_python>=4.3.0.36
-tensorflow>=pa
+tensorflow~=2.8.0
 natsort>=7.1.1
 matplotlib>=3.4.1
 tqdm>=4.42.1
 Pillow>=8.2.0
-tensorflow~=2.4.1
+#tensorflow~=2.4.1
 
 imgaug >= 0.4.0
 
@@ -23,3 +23,11 @@ ipython~=7.24.1
 pytz~=2021.1
 
 #keras ~= 2.4.3
+
+seaborn~=0.11.2
+mat73~=0.59
+keras~=2.8.0
+lightgbm~=3.3.2
+shap~=0.40.0
+joblib~=1.1.0
+optuna~=2.10.1

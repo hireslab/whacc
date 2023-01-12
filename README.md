@@ -9,9 +9,22 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 ![](./pictures/trial_animation.gif) <br />
 *Single example trial lasting 4 seconds. Example video (left) along with whisker traces, decomposed components, and spikes recorded from L5 (right). How do we identify the precise millisecond frame when touch occurs?*
 
-## Data: 
-Current dataset involves 400,000 semi-automated curated images. The distribution with sample images are listed below.  
-![](./pictures/frame_distribution.png)
+
+## Flow diagram of WhACC video pre-processing and design implementation
+![](./pictures/WhACC figure 1.png) <br />
+
+## Touch frame scoring and variation in human curation
+![](./pictures/WhACC figure 2.png) <br />
+
+## Feature engineering and selection
+![](./pictures/WhACC figure 3.png) <br />
+
+## Data selection and model performance
+![](./pictures/WhACC figure 4.png) <br />
+
+## WhACC shows expert human level performance
+![](./pictures/WhACC figure 5.png) <br />
+
 
 ## Code contributors:
 WhACC code and software was originally developed by Phillip Maire and Jonathan Cheung in the laboratory of [Samuel Andrew Hires](https://www.hireslab.org/). 

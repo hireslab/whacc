@@ -4,3 +4,6 @@ include ./requirements.txt
 
 recursive-include ./whacc/ *
 
+recursive-exclude ./whacc/whacc_data/training_data/ *
+recursive-exclude ./whacc/whacc_data/final_model/final_resnet50V2_full_model/ *
+recursive-exclude ./whacc/whacc_data/final_model/extra_LGBM_models/ *

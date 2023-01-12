@@ -1,11 +1,10 @@
 from setuptools import setup
 from setuptools import find_packages
+import os
+from whacc import utils
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-
-
-import os
 
 def package_files(directory):
     paths = []
@@ -15,11 +14,17 @@ def package_files(directory):
                 paths.append(os.path.join('..', path, filename))
     return paths
 
-extra_files = package_files('/Users/phil/Dropbox/HIRES_LAB/GitHub/whacc/whacc/whacc_data')
-extra_files
+
+include_files = package_files(utils.get_whacc_path()) # need to verify this will work on all machines... using utils
+# before WhACC is installed??????
+
+remove_list = ['final_model/final_resnet50V2_full_model',
+               'whacc_data/training_data',
+               'final_model/extra_LGBM_models']
+include_files = list(utils.lister_it(include_files, remove_string=remove_list))
 
 setup(name='whacc',
-      version='1.1.43',
+      version='1.3.07',
       author="Phillip Maire",
       license='MIT',
       description='Automatic and customizable pipeline for creating a CNN + light GBM model to predict whiskers contacting objects',
@@ -34,7 +39,8 @@ setup(name='whacc',
                    "Operating System :: OS Independent"],
       python_requires='>=3.6',
       install_requires=["natsort==7.1.1"],
-      package_data={'': extra_files},
+      package_data={'': include_files},
+      # exclude_package_data=exclude_package_data,
       # package_data={'whacc': ['whacc_data/*',
       #                         'whacc/whacc_data/feature_data/*',
       #                         'whacc/whacc_data/feature_data/*.pkl',
