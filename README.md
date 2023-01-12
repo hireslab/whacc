@@ -11,19 +11,24 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 
 
 ## Flow diagram of WhACC video pre-processing and design implementation
-![](./pictures/WhACC figure 1.png) <br />
+
+![](./pictures/WhACC_figure_1.png) <br />
 
 ## Touch frame scoring and variation in human curation
-![](./pictures/WhACC figure 2.png) <br />
+
+![](./pictures/WhACC_figure_2.png) <br />
 
 ## Feature engineering and selection
-![](./pictures/WhACC figure 3.png) <br />
+
+![](./pictures/WhACC_figure_3.png) <br />
 
 ## Data selection and model performance
-![](./pictures/WhACC figure 4.png) <br />
+
+![](./pictures/WhACC_figure_4.png) <br />
 
 ## WhACC shows expert human level performance
-![](./pictures/WhACC figure 5.png) <br />
+
+![](./pictures/WhACC_figure_5.png) <br />
 
 
 ## Code contributors:
