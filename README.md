@@ -10,7 +10,7 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 *Single example trial lasting 4 seconds. Example video (left) along with whisker traces, decomposed components, and spikes recorded from L5 (right). How do we identify the precise millisecond frame when touch occurs?*
 
 ![](./pictures/ResNetV2_2048_features_clustered.gif) <br />
-*Original 2048 output features extracted from the penultimate layer of the initial ResNet50 V2 model, clustered for emphasize different clusters*
+*Original 2048 output features extracted from the penultimate layer of the initial ResNet50 V2 model, clustered for emphasize*
 
 
 ## Flow diagram of WhACC video pre-processing and design implementation
