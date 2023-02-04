@@ -25,10 +25,6 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 
 ![](./pictures/WhACC_figure_3.png) <br />
 
-## Clustered output of Resnet 2048 output features (before feature engineering)
-
-![](./pictures/ResNetV2_2048_features_clustered.gif) <br />
-
 ## Data selection and model performance
 
 ![](./pictures/WhACC_figure_4.png) <br />
