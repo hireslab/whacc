@@ -33,6 +33,14 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 
 ![](./pictures/WhACC_figure_5.png) <br />
 
+## WhACC can be retrained on a small subset to account for data drift over time or different datasets (see GUI below)
+
+![](./pictures/WhACC_figure_6.png) <br />
+
+## WhACC GUI: used to curate automatically selected subset of data for optimal performance
+
+![](./pictures/WhACC_GUI_Curator.png) <br />
+
 
 ## Code contributors:
 WhACC code and software was originally developed by Phillip Maire and Jonathan Cheung in the laboratory of [Samuel Andrew Hires](https://www.hireslab.org/). 
