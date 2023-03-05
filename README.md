@@ -21,17 +21,17 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 
 ![](./pictures/WhACC_figure_2.png) <br />
 
-## Feature engineering and selection
+## Data selection and model performance
 
 ![](./pictures/WhACC_figure_3.png) <br />
 
-## Data selection and model performance
+## Feature engineering and selection
 
-![](./pictures/WhACC_figure_4.png) <br />
+![](./pictures/WhACC_figure_5.png) <br />
 
 ## WhACC shows expert human level performance
 
-![](./pictures/WhACC_figure_5.png) <br />
+![](./pictures/WhACC_figure_4.png) <br />
 
 ## WhACC can be retrained on a small subset to account for data drift over time or different datasets (see GUI below)
 
