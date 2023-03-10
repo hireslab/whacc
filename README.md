@@ -38,8 +38,9 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 ![](./pictures/WhACC_figure_6.png) <br />
 
 ## WhACC GUI: used to curate automatically selected subset of data for optimal performance
-
 ![](./pictures/WhACC_GUI_Curator.png) <br />
+
+## Use left and right arrows to move through images, use up to label as touch (green) and down to label as not-touch (red)
 ![](./pictures/curation_GUI.gif) <br />
 
 
