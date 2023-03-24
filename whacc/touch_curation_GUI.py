@@ -4,6 +4,8 @@ import numpy as np
 from tkinter import *
 from tkinter import ttk
 from PIL import ImageTk, Image
+
+
 # import time
 
 
@@ -12,7 +14,7 @@ from PIL import ImageTk, Image
 # H5_file_name = '/Users/phil/Dropbox/Autocurator/testing_data/MP4s/AH0667x170317_JON/AH0667x170317-.h5'
 # label_key = 'labels'
 
-def touch_gui(H5_file_name, label_read_key, label_write_key=None):
+def touch_gui(H5_file_name, label_read_key, image_read_key='images', label_write_key=None):
     """
 
     Parameters
@@ -36,8 +38,6 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
     global img
     global LABELS
 
-
-
     with h5py.File(H5_file_name, 'r+') as h5:
         def move(add_to):
             """
@@ -58,13 +58,13 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
             ###
             im_ind = im_ind + add_to
             xx = 3  # how many pictures on each side of the center picture
-            img = np.zeros(np.asarray(h5['images'][0].shape) + np.asarray([10, 2, 0])).astype('int16')
+            img = np.zeros(np.asarray(h5[image_read_key][0].shape) + np.asarray([10, 2, 0])).astype('int16')
             img = np.repeat(img, xx * 2 + 1, axis=1)
             img = np.concatenate((img, np.expand_dims(img[:, 0, :], axis=[1])), axis=1)
             img = img[:, 1:, :]
-            W = h5['images'][0].shape[1]
-            for i, k in enumerate(index_out(h5['images'], im_ind - xx, im_ind + xx + 1)):
-                b = h5['images'][k]
+            W = h5[image_read_key][0].shape[1]
+            for i, k in enumerate(index_out(h5[image_read_key], im_ind - xx, im_ind + xx + 1)):
+                b = h5[image_read_key][k]
                 l = LABELS[k]
                 if l == -1:
                     pass
@@ -87,9 +87,8 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
             ind2print = copy.deepcopy(im_ind) + 1
             if im_ind < 0:
                 ind2print = len(LABELS) - (im_ind * -1) + 1
-            text.configure(text=str(ind2print%len(LABELS)) + ' of ' + str(len(LABELS)))
-            text.text = str(ind2print%len(LABELS)) + ' of ' + str(len(LABELS))
-
+            text.configure(text=str(ind2print % len(LABELS)) + ' of ' + str(len(LABELS)))
+            text.text = str(ind2print % len(LABELS)) + ' of ' + str(len(LABELS))
 
         def index_out(a, start, stop):
             """
@@ -144,6 +143,7 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         def move_left10(event=None):
             global im_ind
             move(-10)
+
         def move_right10(event=None):
             global im_ind
             move(10)
@@ -151,6 +151,7 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         def move_left100(event=None):
             global im_ind
             move(-100)
+
         def move_right100(event=None):
             global im_ind
             move(100)
@@ -158,10 +159,10 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         def move_left1000(event=None):
             global im_ind
             move(-1000)
+
         def move_right1000(event=None):
             global im_ind
             move(1000)
-
 
         def switch_label(event=None):
             """
@@ -250,7 +251,7 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
             """
             global LABELS
             neg_ones = np.where(LABELS == -1)
-            LABELS = (LABELS>.5)*1
+            LABELS = (LABELS > .5) * 1
             for neg_ind in neg_ones:
                 LABELS[neg_ind] = -1
             try:
@@ -269,7 +270,7 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         root.grid_rowconfigure(0, weight=1)
 
         im_ind = -1
-        image_tk = ImageTk.PhotoImage(image=Image.fromarray(h5['images'][im_ind]))
+        image_tk = ImageTk.PhotoImage(image=Image.fromarray(h5[image_read_key][im_ind]))
 
         set_1 = ttk.Button(c, text="set to 1", command=make_1)
         set_1.grid(column=2, row=0, sticky=S, pady=5, padx=2)
@@ -290,7 +291,6 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         left_btn = ttk.Button(c, text="left", command=move_left)
         left_btn.grid(column=0, row=0, sticky=S, pady=0, padx=3)
         root.bind('<Left>', move_left)
-
 
         root.bind(',', move_left10)
         root.bind('.', move_right10)
@@ -316,6 +316,6 @@ def touch_gui(H5_file_name, label_read_key, label_write_key=None):
         label_1 = ttk.Label(c)
         label_1.grid(column=0, row=10, sticky=N, pady=5, padx=5, columnspan=10, rowspan=1)
 
-        text = Label(c, text=str(im_ind%len(LABELS)) + ' of ' + str(len(LABELS)))
+        text = Label(c, text=str(im_ind % len(LABELS)) + ' of ' + str(len(LABELS)))
         text.place(x=100, y=0)
         root.mainloop()
