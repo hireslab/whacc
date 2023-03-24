@@ -18,11 +18,16 @@ import zipfile
 from datetime import datetime
 import pytz
 import json
+import tensorflow as tf
 
 def load_final_model_HEAD():
-    mod_path = utils.get_whacc_path() + '/whacc_data/final_model/final_resnet50V2_HEAD/final_CNN_model_head.pkl'
-    mod = utils.load_obj(mod_path)
+    mod_path = utils.get_whacc_path() + '/whacc_data/final_model/final_resnet50V2_HEAD/final_model_HEAD'
+    mod = tf.keras.models.load_model(mod_path)
     mod.compile()
+
+    # mod_path = utils.get_whacc_path() + '/whacc_data/final_model/final_resnet50V2_HEAD/final_CNN_model_head.pkl'
+    # mod = utils.load_obj(mod_path)
+    # mod.compile()
     return mod
 def load_final_model(keep_head = False):
     mod_path = utils.get_whacc_path() + '/whacc_data/final_model/final_resnet50V2_full_model'

@@ -24,7 +24,7 @@ remove_list = ['final_model/final_resnet50V2_full_model',
 include_files = list(utils.lister_it(include_files, remove_string=remove_list))
 
 setup(name='whacc',
-      version='1.3.21',
+      version='1.3.23',
       author="Phillip Maire",
       license='MIT',
       description='Automatic and customizable pipeline for creating a CNN + light GBM model to predict whiskers contacting objects',
