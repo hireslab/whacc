@@ -24,17 +24,23 @@ def load_final_model_HEAD():
     mod = utils.load_obj(mod_path)
     mod.compile()
     return mod
-def load_final_model():
+def load_final_model(keep_head = False):
     mod_path = utils.get_whacc_path() + '/whacc_data/final_model/final_resnet50V2_full_model'
+    if not os.path.isdir(mod_path):
+        print('Auto downloading resnet model, this will only run once')
+        utils.download_resnet_model()
     mod = keras.models.load_model(mod_path)
-    # mod.compile()
-    num_layers_in_base_model = 190 #used originally to chop different base models kept for posterity
-    mod = Model(mod.input, mod.layers[num_layers_in_base_model +1].output) # cut off head
-    mod.compile()
-    return mod
+    if keep_head:
+        return mod
+    else:
+        num_layers_in_base_model = 190 #used originally to chop different base models kept for posterity
+        mod = Model(mod.input, mod.layers[num_layers_in_base_model +1].output) # cut off head
+        mod.compile()
+        return mod
 
 def load_final_light_GBM():
-    mod_path = utils.get_whacc_path() + '/whacc_data/final_model/light_GBM_model/mod_67_with_threshold.pkl'
+    # mod_path = utils.get_whacc_path() + '/whacc_data/final_model/light_GBM_model/mod_67_with_threshold.pkl'
+    mod_path = utils.get_whacc_path() + '/whacc_data/final_model/light_GBM_model/FINAL_WHACC_MODEL_016_model.pkl'
     mod = utils.load_obj(mod_path)
     return mod
 
