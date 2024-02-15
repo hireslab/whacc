@@ -30,7 +30,7 @@ Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks t
 
 ## Data selection and model performance
 
-![](./pictures/WhACC_figure_3.png) <br />
+![](./pictures/WhACC_figure_3_with_LSTM.png) <br />
 
 ## Feature engineering and selection
 
