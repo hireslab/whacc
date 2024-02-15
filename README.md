@@ -4,6 +4,13 @@ WhACC is a tool for automated touched image classification.
 
 Many neuroscience labs (e.g. [Hires Lab](https://www.hireslab.org/)) use tasks that involve whisker active touch against thin movable poles to study diverse questions of sensory and motor coding. Since neurons operate at temporal resolutions of milliseconds, determining precise whisker contact periods is essential. Yet, accurately classifying the precise moment of touch is time-consuming and labor intensive. 
 
+[Model Card](./WhACC_model_card.md)
+
+[Data Card](./WhACC_data_card.md)
+
+
+
+
 ## [Walkthrough: Google CoLab](https://colab.research.google.com/drive/1HqkzE-Wih89DKwrOWplp58UrbNMP1KPS?usp=sharing)
 
 ![](./pictures/trial_animation.gif) <br />
